@@ -135,11 +135,11 @@ require_once __DIR__ . '/../../includes/header.php';
 
                     <?php if ($isOwnReview): ?>
                         <a href="edit.php?id=<?= urlencode($rev['FeedbackID']) ?>" class="btn btn-cancel" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; border-color: #cbd5e1; font-weight: 600;">
-                            Edit My Review (FR-6.3)
+                            Edit My Review
                         </a>
                     <?php elseif ($isAdmin): ?>
                         <a href="edit.php?id=<?= urlencode($rev['FeedbackID']) ?>" class="btn btn-outline-blue" style="padding: 0.35rem 0.85rem; font-size: 0.82rem;">
-                            Moderate / Reply (UI 6.3)
+                            Moderate / Reply
                         </a>
                     <?php endif; ?>
                 </div>

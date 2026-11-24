@@ -16,8 +16,8 @@ declare(strict_types=1);
             <p>&copy; <?= date('Y') ?> Assignment Team. All rights reserved.</p>
         </div>
         <ul class="footer-modules">
-            <li><a href="<?= $baseUrl ?>modules/maintenance/index.php">Module 5: Maintenance & Damage Reporting</a></li>
-            <li><a href="<?= $baseUrl ?>modules/feedback/index.php">Module 6: User Feedback & Reviews</a></li>
+            <li><a href="<?= $baseUrl ?>modules/maintenance/index.php">Facility Maintenance &amp; Damage Reporting</a></li>
+            <li><a href="<?= $baseUrl ?>modules/feedback/index.php">User Feedback &amp; Reviews</a></li>
         </ul>
     </div>
 </footer>

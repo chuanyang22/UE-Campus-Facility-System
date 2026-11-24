@@ -42,7 +42,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <?php if (!empty($pendingLockdowns)): ?>
     <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
         <div>
-            <strong style="color: #991b1b;">🚨 Emergency Hazard Alert (FR-5.5):</strong>
+            <strong style="color: #991b1b;">🚨 Emergency Hazard Alert:</strong>
             <span style="color: #7f1d1d; font-size: 0.9rem; margin-left: 0.35rem;">
                 <?= count($pendingLockdowns) ?> venue(s) have critical safety defect reports awaiting Admin Lockdown Approval.
             </span>
@@ -115,7 +115,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <th>Assigned Technician</th>
                     <th>Status</th>
                     <th>Reported At</th>
-                    <th>Action</th>
+                    <th style="white-space: nowrap; width: 140px;">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -161,9 +161,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </span>
                             </td>
                             <td><?= htmlspecialchars(date('d M Y, H:i', strtotime($t['ScheduledDate']))) ?></td>
-                            <td>
-                                <a href="update.php?id=<?= urlencode($t['MaintenanceID']) ?>" class="btn-outline-blue">
-                                    Manage / Update
+                            <td style="white-space: nowrap; width: 140px;">
+                                <a href="update.php?id=<?= urlencode($t['MaintenanceID']) ?>" class="btn btn-outline-blue" style="white-space: nowrap;">
+                                    <?= $t['MaintenanceStatus'] === 'Completed' ? 'View Details' : 'Manage / Update' ?>
                                 </a>
                             </td>
                         </tr>

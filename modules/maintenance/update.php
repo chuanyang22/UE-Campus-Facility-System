@@ -81,21 +81,21 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Admin Lockdown Approval Banner (FR-5.5) -->
+<!-- Admin Lockdown Review Banner -->
 <?php if ($ticket['UrgencyLevel'] === 'Critical' && ($ticket['LockdownStatus'] ?? 'None') === 'Pending_Review'): ?>
     <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 1.15rem 1.35rem; margin-bottom: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.85rem;">
             <div>
-                <strong style="color: #991b1b; font-size: 1rem;">🚨 Critical Hazard Reported: Awaiting Admin Lockdown Approval (FR-5.5)</strong>
+                <strong style="color: #991b1b; font-size: 1rem;">🚨 Critical Hazard Reported: Awaiting Admin Review</strong>
                 <p style="margin: 0.25rem 0 0 0; color: #7f1d1d; font-size: 0.88rem;">
-                    A student lodged an urgent safety report for <?= htmlspecialchars($ticket['FacilityName']) ?>. To protect students and prevent accidents, approve emergency lockdown to immediately update the venue status to <strong>Under Maintenance</strong>.
+                    A user lodged an urgent safety report for <?= htmlspecialchars($ticket['FacilityName']) ?>. Review the issue and approve venue closure if safety risks warrant locking out student bookings.
                 </p>
             </div>
             <div style="display: flex; gap: 0.6rem; align-items: center;">
                 <form method="POST" action="update.php?id=<?= urlencode($ticket['MaintenanceID']) ?>" style="margin: 0;">
                     <input type="hidden" name="approve_lockdown" value="1">
                     <button type="submit" class="btn btn-danger-red" style="padding: 0.55rem 1.15rem; font-size: 0.85rem;">
-                        Approve &amp; Lock Venue (FR-5.5)
+                        Approve &amp; Lock Venue
                     </button>
                 </form>
                 <form method="POST" action="update.php?id=<?= urlencode($ticket['MaintenanceID']) ?>" style="margin: 0;">
@@ -142,11 +142,11 @@ require_once __DIR__ . '/../../includes/header.php';
                 <textarea id="TechnicianResolutionNotes" name="TechnicianResolutionNotes" rows="3" class="form-control" placeholder="Describe actions performed, safety tests conducted, and parts replaced..." required><?= htmlspecialchars($ticket['IssueDescription'] ?? 'Replaced damaged wall socket outlet and insulated projector power line. Tested voltage stability; room cleared for student use.') ?></textarea>
             </div>
 
-            <!-- Automated Venue Unlock Banner (FR-5.5) -->
+            <!-- Automated Venue Unlock Banner -->
             <div class="alert-banner-green">
                 <span style="font-weight: 700;">&#10003;</span>
                 <div>
-                    <strong>Automated Venue Unlock (FR-5.5):</strong> Marking this ticket as <em>Resolved</em> automatically restores <?= htmlspecialchars($ticket['FacilityID']) ?> status to <strong>Available</strong> in the FACILITY table.
+                    <strong>Facility Availability Restoration:</strong> Marking this ticket as <em>Resolved</em> automatically restores <?= htmlspecialchars($ticket['FacilityID']) ?> status to <strong>Available</strong> in the FACILITY table.
                 </div>
             </div>
 
@@ -194,15 +194,15 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
         </div>
 
-        <!-- Close / Delete Duplicate or Voided Ticket (FR-5.4) -->
+        <!-- Close / Delete Duplicate or Voided Ticket -->
         <div class="alert-banner-red" style="margin-top: 0;">
             <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.35rem;">
-                Close / Delete Duplicate or Voided Ticket (FR-5.4)
+                Close / Delete Duplicate or Voided Ticket
             </div>
             <p style="font-size: 0.85rem; color: #7f1d1d; margin-bottom: 1rem; line-height: 1.4;">
                 Permanently delete invalid, duplicate, or resolved archived tickets from the MAINTENANCE table.
             </p>
-            <form method="POST" action="update.php?id=<?= urlencode($ticket['MaintenanceID']) ?>" onsubmit="return confirm('Permanently delete ticket <?= htmlspecialchars($cleanId) ?>? (FR-5.4)');">
+            <form method="POST" action="update.php?id=<?= urlencode($ticket['MaintenanceID']) ?>" onsubmit="return confirm('Permanently delete ticket <?= htmlspecialchars($cleanId) ?>?');">
                 <input type="hidden" name="delete_ticket" value="1">
                 <button type="submit" class="btn btn-danger-red" style="width: 100%;">
                     Delete / Purge Ticket <?= htmlspecialchars($cleanId) ?>

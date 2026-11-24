@@ -235,7 +235,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <div id="safetyBanner" class="alert-banner-amber">
             <span id="safetyIcon" style="font-size: 1.25rem;">&#9888;</span>
             <div id="safetyText">
-                <strong>Safety Protocol (FR-5.5):</strong> Selecting <em>Critical / Hazardous</em> dispatches an immediate safety alert to Facility Administrators to review and approve emergency venue lockdown, preventing accidental facility closures.
+                <strong>Safety Protocol:</strong> Selecting <em>Critical / Hazardous</em> dispatches an immediate safety alert to Facility Administrators to review and approve emergency venue lockdown, preventing accidental facility closures.
             </div>
         </div>
 
@@ -389,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
             safetyBanner.style.borderColor = '#fecdd3';
             safetyBanner.style.color = '#991b1b';
             safetyIcon.innerHTML = '&#128680;';
-            safetyText.innerHTML = '<strong>🚨 Critical Safety Hazard (FR-5.5):</strong> Submitting as Critical dispatches an emergency alert to Facility Administrators to review and approve an immediate venue lockdown, preventing student injury.';
+            safetyText.innerHTML = '<strong>🚨 Critical Safety Hazard:</strong> Submitting as Critical dispatches an emergency alert to Facility Administrators to review and approve an immediate venue lockdown, preventing student injury.';
         }
     }
 

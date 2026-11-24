@@ -104,9 +104,9 @@ class MaintenanceService {
 
             $successMsg = "Defect ticket #{$maintenanceId} successfully logged.";
             if ($locked) {
-                $successMsg .= " [FR-5.5]: Facility {$facilityId} has been LOCKED ('Under Maintenance') following safety protocol.";
+                $successMsg .= " Facility {$facilityId} has been LOCKED ('Under Maintenance') following safety protocol.";
             } elseif ($lockdownStatus === 'Pending_Review') {
-                $successMsg .= " [FR-5.5 ALERT]: Emergency hazard alert sent to Facility Administrators for lockdown review & approval.";
+                $successMsg .= " Emergency hazard alert sent to Facility Administrators for lockdown review & approval.";
             }
 
             return [
@@ -266,7 +266,7 @@ class MaintenanceService {
 
             $msg = "Ticket #{$ticket['MaintenanceID']} successfully updated to '{$dbStatus}'.";
             if ($unlocked) {
-                $msg .= " [FR-5.5 TRIGGERED]: Facility {$facilityId} has been AUTOMATICALLY RESTORED to 'Available' in the FACILITY table.";
+                $msg .= " Facility {$facilityId} has been automatically restored to 'Available' in the facilities catalog.";
             }
 
             return ['success' => true, 'message' => $msg, 'unlocked' => $unlocked];

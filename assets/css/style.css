@@ -239,17 +239,25 @@ body {
 }
 
 .btn-outline-blue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background-color: #ffffff;
     color: var(--primary-blue);
     border: 1px solid #93c5fd;
     font-size: 0.82rem;
-    padding: 0.4rem 0.75rem;
+    padding: 0.42rem 0.85rem;
     border-radius: 6px;
     font-weight: 600;
     text-decoration: none;
+    white-space: nowrap;
+    line-height: 1.2;
+    transition: all 0.15s ease;
 }
 .btn-outline-blue:hover {
     background-color: #eff6ff;
+    border-color: var(--primary-blue);
+    color: var(--primary-blue-hover);
 }
 
 /* Dynamic Urgency Radio Box in 5.1 */

@@ -236,11 +236,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     #<?= htmlspecialchars($review505['FeedbackID']) ?> | Flagged Spam Entry | User: <?= htmlspecialchars($review505['UserID']) ?> | <?= htmlspecialchars($review505['FacilityName']) ?>
                 </div>
 
-                <form method="POST" action="edit.php" onsubmit="return confirm('Are you sure you want to permanently delete invalid review #<?= htmlspecialchars($review505['FeedbackID']) ?> from the database? (FR-6.4)');" style="margin: 0;">
+                <form method="POST" action="edit.php" onsubmit="return confirm('Are you sure you want to permanently delete invalid review #<?= htmlspecialchars($review505['FeedbackID']) ?> from the database?');" style="margin: 0;">
                     <input type="hidden" name="action" value="delete_review">
                     <input type="hidden" name="FeedbackID" value="<?= htmlspecialchars($review505['FeedbackID']) ?>">
                     <button type="submit" class="btn btn-danger-red" style="padding: 0.6rem 1.25rem; font-weight: 700;">
-                        Delete Invalid Review (FR-6.4)
+                        Delete Invalid Review
                     </button>
                 </form>
             </div>
@@ -253,7 +253,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <?php else: ?>
         <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 1.25rem 1.75rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
             <span style="color: #64748b; font-size: 0.9rem;">
-                <strong>Spam entry #FB-505 is currently deleted.</strong> Click "Restore Demo Spam #FB-505" above to re-test FR-6.4 deletion.
+                <strong>Spam entry #FB-505 is currently deleted.</strong> Click "Restore Demo Spam #FB-505" above to re-test spam deletion.
             </span>
         </div>
     <?php endif; ?>

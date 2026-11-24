@@ -9,6 +9,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../services/MaintenanceService.php';
 require_once __DIR__ . '/../services/FeedbackService.php';
+require_once __DIR__ . '/../services/BookingService.php';
 
 echo "========================================================\n";
 echo "AMCS2194 MINI PROJECT: MODULES 5 & 6 TEST SUITE\n";
@@ -17,6 +18,7 @@ echo "========================================================\n\n";
 $db = getDB();
 $maintService = new MaintenanceService();
 $fbService = new FeedbackService();
+$bookingService = new BookingService();
 
 $passed = 0;
 $failed = 0;
@@ -206,6 +208,45 @@ assertTest('6.4 Review Verified Deleted', $fbService->getReviewById($createdFbId
 
 // Cleanup test booking
 $db->exec("DELETE FROM booking WHERE BookingID = '{$testBookingId}'");
+
+// -----------------------------------------------------------------
+// 10. UNIQUE FEATURE: Dynamic QR Check-In & 15-Min Auto-Release
+// -----------------------------------------------------------------
+echo "\n--- Testing Unique Feature: Dynamic QR Check-In & Auto-Release ---\n";
+
+// Seed temporary test booking for QR check-in
+$qrTestId = 'BK-QRTEST1';
+$db->exec("DELETE FROM booking WHERE BookingID = '{$qrTestId}'");
+$db->prepare("INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus, CheckInTime) VALUES (?, 'A240112', 'FAC-03', CURDATE(), '16:00:00', '18:00:00', 'QR Test', 'Confirmed', NULL)")
+   ->execute([$qrTestId]);
+
+// 1. Process QR Check-in
+$qrRes = $bookingService->processQrCheckIn($qrTestId);
+assertTest('UF Dynamic QR Check-in Execution', $qrRes['success'] === true);
+
+$checkedInRow = $bookingService->getBookingById($qrTestId);
+assertTest('UF Booking Status updated to Checked-In', $checkedInRow['BookingStatus'] === 'Checked-In');
+assertTest('UF CheckInTime audit timestamp logged', !empty($checkedInRow['CheckInTime']));
+
+// 2. Prevent duplicate check-in
+$dupQr = $bookingService->processQrCheckIn($qrTestId);
+assertTest('UF Duplicate QR Check-in caught idempotently', $dupQr['already'] === true);
+
+// 3. Test 15-Minute No-Show Auto-Release Engine
+$overdueTestId = 'BK-OVD9';
+$db->exec("DELETE FROM booking WHERE BookingID = '{$overdueTestId}'");
+$db->prepare("INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus, CheckInTime) VALUES (?, 'A240112', 'FAC-05', CURDATE(), SUBTIME(CURTIME(), '00:25:00'), ADDTIME(CURTIME(), '01:00:00'), 'Overdue Test', 'Confirmed', NULL)")
+   ->execute([$overdueTestId]);
+
+$autoReleaseRes = $bookingService->runNoShowAutoRelease();
+assertTest('UF 15-Min Auto-Release Engine execution', $autoReleaseRes['success'] === true);
+assertTest('UF Overdue booking auto-released as No-Show', in_array($overdueTestId, $autoReleaseRes['released_ids'], true));
+
+$overdueRow = $bookingService->getBookingById($overdueTestId);
+assertTest('UF DB verification: Status is No-Show', $overdueRow['BookingStatus'] === 'No-Show');
+
+// Cleanup
+$db->exec("DELETE FROM booking WHERE BookingID IN ('{$qrTestId}', '{$overdueTestId}')");
 
 echo "\n========================================================\n";
 echo "TEST RESULTS: {$passed} PASSED, {$failed} FAILED\n";
