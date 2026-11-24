@@ -76,9 +76,16 @@ $resCritical = $maintService->reportDefect($criticalDefect);
 assertTest('5.1 Normal Create Defect Success', $resCritical['success'] === true);
 $createdTicketId = $resCritical['id'];
 
-// Check if FAC-02 was automatically locked to 'Under Maintenance'
+// Check that Critical defect is initially pending admin approval (preventing accidental student lockdown)
+assertTest('5.5 Critical Ticket flagged for Admin Review', $resCritical['lockdown_status'] === 'Pending_Review');
+
+// Admin approves lockdown
+$approveRes = $maintService->approveVenueLockdown($createdTicketId);
+assertTest('5.5 Admin Lockdown Approval Execution', $approveRes['success'] === true);
+
+// Check if FAC-02 is now locked to 'Under Maintenance' following admin approval
 $venueStatus = $db->query("SELECT AvailabilityStatus FROM facility WHERE FacilityID = 'FAC-02'")->fetchColumn();
-assertTest('5.5 Automated Venue Lock to Under Maintenance', $venueStatus === 'Under Maintenance');
+assertTest('5.5 Facility Locked to Under Maintenance upon Admin Approval', $venueStatus === 'Under Maintenance');
 
 // -----------------------------------------------------------------
 // 3. MODULE 5: 5.2 Retrieve Ticket Log & Filters

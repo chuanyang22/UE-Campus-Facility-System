@@ -163,7 +163,7 @@ class FeedbackService {
             // Admin updating AdminRemarks
             $adminRemarks = trim($data['AdminRemarks'] ?? '');
             if (mb_strlen($adminRemarks) > 300) {
-                $errors['AdminRemarks'] = 'Admin Remarks cannot exceed 300 characters (Size Check failed).';
+                $errors['AdminRemarks'] = 'Admin Remarks cannot exceed 300 characters.';
             }
 
             if (!empty($errors)) {
@@ -183,10 +183,10 @@ class FeedbackService {
             $condition   = (int)($data['ConditionRating'] ?? 0);
 
             if ($cleanliness < 1 || $cleanliness > 5) {
-                $errors['CleanlinessRating'] = 'Cleanliness Rating must be an integer between 1 and 5 (Range Check failed).';
+                $errors['CleanlinessRating'] = 'Cleanliness Rating must be an integer between 1 and 5.';
             }
             if ($condition < 1 || $condition > 5) {
-                $errors['ConditionRating'] = 'Facility Condition Rating must be between 1 and 5 (Range Check failed).';
+                $errors['ConditionRating'] = 'Facility Condition Rating must be between 1 and 5.';
             }
 
             $comments = trim($data['UserComments'] ?? '');
@@ -283,7 +283,7 @@ class FeedbackService {
         // 1. BookingID presence & existence check
         $bookingId = trim($data['BookingID'] ?? '');
         if ($bookingId === '') {
-            $errors['BookingID'] = 'Completed booking session must be selected (Null Value Check failed).';
+            $errors['BookingID'] = 'Completed booking session must be selected.';
         } else {
             // Existence check
             $stmt = $this->db->prepare("SELECT BookingStatus FROM booking WHERE BookingID = ?");
@@ -291,44 +291,44 @@ class FeedbackService {
             $status = $stmt->fetchColumn();
 
             if ($status === false) {
-                $errors['BookingID'] = "Booking ID '{$bookingId}' does not exist (Existence Check failed).";
+                $errors['BookingID'] = "Booking ID '{$bookingId}' does not exist.";
             } elseif ($status !== 'Completed') {
-                $errors['BookingID'] = "Reviews can only be submitted for completed sessions. Current status is '{$status}' (Business Rule Check failed).";
+                $errors['BookingID'] = "Reviews can only be submitted for completed sessions. Current status is '{$status}'.";
             } else {
                 // Uniqueness check (1 feedback per booking)
                 $dupStmt = $this->db->prepare("SELECT FeedbackID FROM feedback WHERE BookingID = ?");
                 $dupStmt->execute([$bookingId]);
                 $existing = $dupStmt->fetchColumn();
                 if ($existing) {
-                    $errors['BookingID'] = "Feedback ({$existing}) has already been submitted for booking {$bookingId} (Uniqueness Check failed).";
+                    $errors['BookingID'] = "Feedback ({$existing}) has already been submitted for booking {$bookingId}.";
                 }
             }
         }
 
         // 2. CleanlinessRating range check (1 to 5)
         if (!isset($data['CleanlinessRating']) || $data['CleanlinessRating'] === '') {
-            $errors['CleanlinessRating'] = 'Cleanliness Rating is mandatory (Null Value Check failed).';
+            $errors['CleanlinessRating'] = 'Cleanliness Rating is mandatory.';
         } else {
             $cleanliness = filter_var($data['CleanlinessRating'], FILTER_VALIDATE_INT);
             if ($cleanliness === false || $cleanliness < 1 || $cleanliness > 5) {
-                $errors['CleanlinessRating'] = 'Cleanliness Rating must be an integer between 1 and 5 (Range Check failed).';
+                $errors['CleanlinessRating'] = 'Cleanliness Rating must be an integer between 1 and 5.';
             }
         }
 
         // 3. ConditionRating range check (1 to 5)
         if (!isset($data['ConditionRating']) || $data['ConditionRating'] === '') {
-            $errors['ConditionRating'] = 'Facility Condition Rating is mandatory (Null Value Check failed).';
+            $errors['ConditionRating'] = 'Facility Condition Rating is mandatory.';
         } else {
             $condition = filter_var($data['ConditionRating'], FILTER_VALIDATE_INT);
             if ($condition === false || $condition < 1 || $condition > 5) {
-                $errors['ConditionRating'] = 'Facility Condition Rating must be an integer between 1 and 5 (Range Check failed).';
+                $errors['ConditionRating'] = 'Facility Condition Rating must be an integer between 1 and 5.';
             }
         }
 
         // 4. UserComments size check (max 1000)
         $comments = trim($data['UserComments'] ?? '');
         if (mb_strlen($comments) > 1000) {
-            $errors['UserComments'] = 'Comments cannot exceed 1000 characters (Size Check failed).';
+            $errors['UserComments'] = 'Comments cannot exceed 1000 characters.';
         }
 
         return $errors;

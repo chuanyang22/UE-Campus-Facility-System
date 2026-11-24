@@ -1,6 +1,6 @@
 <?php
 /**
- * Main Home Page / Unified Dashboard
+ * Main Home Page / Unified Portal Dashboard
  * AMCS2194 Mini Project — UE Campus Facility Booking System
  */
 
@@ -24,238 +24,167 @@ $facilityRatings = $feedbackService->getFacilityRatingsSummary();
 $recentReviews   = $feedbackService->getReviews();
 $recentReviews   = array_slice($recentReviews, 0, 3);
 
+$currentUser = AuthService::getCurrentUser();
+$isAdmin = AuthService::isAdmin();
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<!-- Hero Banner -->
-<div class="card" style="background: linear-gradient(135deg, #8b0000 0%, #1a365d 100%); color: #ffffff; padding: 2.5rem 2rem; border: none; margin-bottom: 2rem;">
-    <div style="max-width: 850px;">
-        <span class="badge" style="background: rgba(255, 255, 255, 0.25); color: #ffffff; margin-bottom: 0.75rem;">AMCS2194 Diploma Mini Project</span>
-        <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.75rem; letter-spacing: -0.5px;">
-            UE Campus Facility Booking System
-        </h1>
-        <p style="font-size: 1.05rem; opacity: 0.92; line-height: 1.6; margin-bottom: 1.5rem;">
-            A centralized Three-Tier Web Application integrating facility maintenance, rapid defect reporting, and transparent student session feedback loops with automated hazard protection.
-        </p>
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-            <a href="modules/maintenance/index.php" class="btn" style="background: #ffffff; color: var(--primary-color);">
-                &#128295; Module 5: Maintenance
+<!-- Portal Header Banner -->
+<div class="ui-card" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 2.25rem 2.5rem; margin-bottom: 2rem; border-color: #334155;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+        <div style="max-width: 780px;">
+            <div style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 9999px; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                AMCS2194 Mini Project &bull; Three-Tier Web Prototype
+            </div>
+            <h1 style="font-size: 2.1rem; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 0.6rem;">
+                UE Campus Facility Booking System
+            </h1>
+            <p style="color: #94a3b8; font-size: 1rem; line-height: 1.6; margin: 0;">
+                Centralized management for campus facility maintenance (Module 5) with automated hazard locking, and verified student feedback loops (Module 6) for facility quality and admin moderation.
+            </p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; min-width: 240px;">
+            <a href="modules/maintenance/report.php" class="btn btn-primary-blue" style="padding: 0.75rem 1.25rem; font-weight: 700;">
+                + Report Defect (UI 5.1)
             </a>
-            <a href="modules/feedback/index.php" class="btn" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4);">
-                &#11088; Module 6: Feedback
+            <a href="modules/maintenance/index.php" class="btn btn-cancel" style="padding: 0.65rem 1.25rem; font-weight: 600;">
+                Maintenance Ticket Log (UI 5.2)
             </a>
-            <a href="modules/maintenance/report.php" class="btn" style="background: #f59e0b; color: #1e293b;">
-                + Report Defect
+            <a href="modules/feedback/index.php?facility_id=FAC-04" class="btn btn-cancel" style="padding: 0.65rem 1.25rem; font-weight: 600;">
+                Facility Reviews (UI 6.2)
             </a>
         </div>
     </div>
 </div>
 
-<!-- Evaluation Guide Notice -->
-<div class="alert alert-info" style="align-items: flex-start; gap: 0.75rem;">
-    <span style="font-size: 1.3rem;">&#128218;</span>
-    <div>
-        <strong>Demonstration Quick Guide (Practical Week 7):</strong>
-        <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem;">
-            Use the <strong>Switch Demo Role</strong> dropdown in the top navigation bar to toggle between <strong>Alex Tan (Student)</strong> and <strong>Admin Facilities (Admin)</strong>.
-            This allows immediate testing of student reporting/ratings and administrative technician management & moderation without repeated logouts.
+<!-- Evaluation & Demonstration Quick Switcher Notice -->
+<div class="alert-banner-amber" style="margin-top: 0; margin-bottom: 2rem;">
+    <span style="font-size: 1.25rem;">&#128161;</span>
+    <div style="flex: 1;">
+        <strong>Demonstration Guide for Evaluators:</strong>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.88rem; color: #92400e;">
+            Currently active session: <strong><?= htmlspecialchars($currentUser['name']) ?> (<?= htmlspecialchars($currentUser['id']) ?> &mdash; <?= htmlspecialchars($currentUser['role']) ?>)</strong>. 
+            Use the <strong>[ Switch Demo Role ]</strong> dropdown in the top-right navigation bar to seamlessly switch between Student persona <code>A240112</code> and Facility Admin <code>S0012</code> without re-logging in.
         </p>
     </div>
 </div>
 
-<!-- High-level Metric Overview -->
-<div class="stat-grid">
-    <div class="stat-card stat-crimson">
-        <span class="stat-label">Active Tickets</span>
-        <span class="stat-value"><?= $maintStats['pending'] + $maintStats['in_progress'] ?></span>
-        <span class="stat-sub"><?= $maintStats['pending'] ?> Pending &bull; <?= $maintStats['in_progress'] ?> In-Progress</span>
+<!-- Stat Grid matching UI 5.2 summary metrics -->
+<div class="stat-row-4">
+    <div class="stat-box">
+        <div class="stat-box-title">Total Active Tickets</div>
+        <div class="stat-box-num num-black"><?= $maintStats['total_active'] ?></div>
     </div>
 
-    <div class="stat-card stat-red">
-        <span class="stat-label">Critical Hazards</span>
-        <span class="stat-value"><?= $maintStats['critical'] ?></span>
-        <span class="stat-sub"><?= $maintStats['locked_venues'] ?> Venue(s) Auto-Locked</span>
+    <div class="stat-box">
+        <div class="stat-box-title">Critical / Locked Venues (FR-5.5)</div>
+        <div class="stat-box-num num-red"><?= $maintStats['locked_venues'] ?> Venues</div>
     </div>
 
-    <div class="stat-card stat-emerald">
-        <span class="stat-label">Resolved Repairs</span>
-        <span class="stat-value"><?= $maintStats['completed'] ?></span>
-        <span class="stat-sub">100% safety verified</span>
+    <div class="stat-box">
+        <div class="stat-box-title">In Progress Repairs</div>
+        <div class="stat-box-num num-amber"><?= $maintStats['in_progress'] ?></div>
     </div>
 
-    <div class="stat-card stat-amber">
-        <span class="stat-label">Total Reviews</span>
-        <span class="stat-value"><?= count($recentReviews) > 0 ? count($maintService->getTickets()) : 1 ?></span>
-        <span class="stat-sub">Student session evaluations</span>
+    <div class="stat-box">
+        <div class="stat-box-title">Resolved This Month</div>
+        <div class="stat-box-num num-green"><?= $maintStats['resolved_month'] ?></div>
     </div>
 </div>
 
-<!-- Two Module Quick Access Columns -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.75rem; margin-bottom: 2rem;">
+<!-- Two Main Module Dashboard Columns -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 1.75rem; margin-top: 1.5rem;">
     
-    <!-- Module 5 Column -->
-    <div class="card">
-        <div class="card-header">
-            <h3><span>&#128295;</span> Module 5: Maintenance & Damage Reporting</h3>
-            <a href="modules/maintenance/index.php" class="btn btn-secondary btn-sm">View All &rarr;</a>
-        </div>
-        <div class="card-body">
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
-                Assigned Scope: CRUD Operations (5.1-5.4) and Automated Venue Locking (5.5).
-            </p>
-
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem;">
-                <?php foreach ($recentTickets as $t): ?>
-                    <li style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <strong><?= htmlspecialchars($t['MaintenanceID']) ?></strong>: <?= htmlspecialchars($t['IssueTitle']) ?><br>
-                            <small class="text-muted"><?= htmlspecialchars($t['FacilityName']) ?> &bull; Sched: <?= htmlspecialchars($t['ScheduledDate']) ?></small>
-                        </div>
-                        <span class="badge badge-<?= strtolower($t['UrgencyLevel']) ?>"><?= htmlspecialchars($t['UrgencyLevel']) ?></span>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-
-            <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
-                <a href="modules/maintenance/report.php" class="btn btn-primary btn-sm" style="flex: 1;">+ Report Defect (5.1)</a>
-                <a href="modules/maintenance/index.php" class="btn btn-secondary btn-sm" style="flex: 1;">Ticket Log (5.2)</a>
+    <!-- Module 5 Card -->
+    <div class="ui-card" style="padding: 1.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+            <div>
+                <h2 style="font-size: 1.2rem; font-weight: 800; color: #0f172a;">
+                    Module 5: Facility Maintenance &amp; Damage Reporting
+                </h2>
+                <span style="font-size: 0.82rem; color: #64748b;">CRUD (5.1&ndash;5.4) &bull; Automated Venue Locking (5.5)</span>
             </div>
+            <a href="modules/maintenance/index.php" class="btn btn-outline-blue" style="font-size: 0.82rem;">View Full Log &rarr;</a>
+        </div>
+
+        <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1rem;">
+            Recent defect tickets and technician assignments:
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;">
+            <?php foreach ($recentTickets as $t): 
+                $urgencyClass = match(strtolower($t['UrgencyLevel'])) {
+                    'critical' => 'pill-critical',
+                    'high' => 'pill-high',
+                    'medium' => 'pill-medium',
+                    default => 'pill-low'
+                };
+            ?>
+                <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
+                    <div>
+                        <strong style="color: #0f172a;">#<?= htmlspecialchars($t['MaintenanceID']) ?></strong> &mdash; 
+                        <?= htmlspecialchars($t['FacilityName']) ?><br>
+                        <small style="color: #64748b; font-size: 0.82rem;"><?= htmlspecialchars($t['DefectCategory'] ?? $t['IssueTitle']) ?> &bull; Tech: <?= htmlspecialchars($t['AssignedTechnician'] ?? 'Unassigned') ?></small>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="pill-badge <?= $urgencyClass ?>"><?= htmlspecialchars($t['UrgencyLevel']) ?></span><br>
+                        <a href="modules/maintenance/update.php?id=<?= urlencode($t['MaintenanceID']) ?>" style="font-size: 0.8rem; color: #2563eb; text-decoration: none; font-weight: 600;">Manage &rarr;</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="modules/maintenance/report.php" class="btn btn-primary-blue" style="flex: 1; font-size: 0.85rem;">+ Log Defect (UI 5.1)</a>
+            <a href="modules/maintenance/update.php?id=MT-1042" class="btn btn-cancel" style="flex: 1; font-size: 0.85rem;">Update Repair (UI 5.3)</a>
         </div>
     </div>
 
-    <!-- Module 6 Column -->
-    <div class="card">
-        <div class="card-header">
-            <h3><span>&#11088;</span> Module 6: User Feedback & Reviews</h3>
-            <a href="modules/feedback/index.php" class="btn btn-secondary btn-sm">View All &rarr;</a>
-        </div>
-        <div class="card-body">
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
-                Assigned Scope: CRUD Operations (6.1-6.4) and Facility Rating Aggregations.
-            </p>
-
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem;">
-                <?php foreach ($recentReviews as $r): ?>
-                    <li style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem 1rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                            <strong><?= htmlspecialchars($r['FacilityName']) ?></strong>
-                            <span class="badge badge-completed"><?= htmlspecialchars((string)$r['OverallScore']) ?>★</span>
-                        </div>
-                        <p style="margin: 0; font-size: 0.85rem; color: #475569; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                            &ldquo;<?= htmlspecialchars($r['UserComments'] ?? 'No comments.') ?>&rdquo;
-                        </p>
-                        <small class="text-muted" style="display: block; margin-top: 0.25rem;">
-                            By <?= htmlspecialchars($r['ReviewerName']) ?> &bull; <?= htmlspecialchars(date('d M Y', strtotime($r['SubmissionDate']))) ?>
-                        </small>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-
-            <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
-                <a href="modules/feedback/submit.php" class="btn btn-primary btn-sm" style="flex: 1;">+ Rate Session (6.1)</a>
-                <a href="modules/feedback/index.php" class="btn btn-secondary btn-sm" style="flex: 1;">Review Wall (6.2)</a>
+    <!-- Module 6 Card -->
+    <div class="ui-card" style="padding: 1.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+            <div>
+                <h2 style="font-size: 1.2rem; font-weight: 800; color: #0f172a;">
+                    Module 6: User Feedback &amp; Review Management
+                </h2>
+                <span style="font-size: 0.82rem; color: #64748b;">CRUD (6.1&ndash;6.4) &bull; Aggregated Star Ratings</span>
             </div>
+            <a href="modules/feedback/index.php?facility_id=FAC-04" class="btn btn-outline-blue" style="font-size: 0.82rem;">View Reviews &rarr;</a>
+        </div>
+
+        <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1rem;">
+            Student post-session reviews and administrator official replies:
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;">
+            <?php foreach ($recentReviews as $r): ?>
+                <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem 1rem; background: #ffffff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <strong style="color: #0f172a; font-size: 0.92rem;"><?= htmlspecialchars($r['FacilityName']) ?></strong>
+                        <span style="color: #d97706; font-weight: 700; font-size: 0.88rem;">
+                            <?= htmlspecialchars((string)$r['OverallScore']) ?>★ (Cleanliness: <?= (int)$r['CleanlinessRating'] ?>/5)
+                        </span>
+                    </div>
+                    <p style="margin: 0; color: #475569; font-size: 0.85rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        &ldquo;<?= htmlspecialchars($r['UserComments'] ?? 'No comment.') ?>&rdquo;
+                    </p>
+                    <?php if (!empty($r['AdminRemarks'])): ?>
+                        <div style="margin-top: 0.4rem; font-size: 0.8rem; color: #2563eb; background: #eff6ff; padding: 0.35rem 0.6rem; border-radius: 4px;">
+                            <strong>Admin Reply:</strong> <?= htmlspecialchars($r['AdminRemarks']) ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="modules/feedback/submit.php" class="btn btn-primary-blue" style="flex: 1; font-size: 0.85rem;">+ Rate Session (UI 6.1)</a>
+            <a href="modules/feedback/edit.php" class="btn btn-cancel" style="flex: 1; font-size: 0.85rem;">Moderation Panel (UI 6.3)</a>
         </div>
     </div>
 
-</div>
-
-<!-- Nine Required Functions Coverage Checklist (Tutor Verification) -->
-<div class="card">
-    <div class="card-header">
-        <h3><span>&#9989;</span> 9-Function Practical Rubric Compliance Checklist</h3>
-        <span class="badge badge-completed">100% Implemented</span>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Function Name</th>
-                        <th>CRUD / Feature</th>
-                        <th>Module</th>
-                        <th>Target Route</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>5.1</strong></td>
-                        <td>Report Facility Defect</td>
-                        <td><span class="badge badge-low">Create</span></td>
-                        <td>Module 5</td>
-                        <td><code>modules/maintenance/report.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>5.2</strong></td>
-                        <td>View Maintenance Ticket Log</td>
-                        <td><span class="badge badge-medium">Retrieve</span></td>
-                        <td>Module 5</td>
-                        <td><code>modules/maintenance/index.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>5.3</strong></td>
-                        <td>Update Repair Status & Technician</td>
-                        <td><span class="badge badge-high">Update</span></td>
-                        <td>Module 5</td>
-                        <td><code>modules/maintenance/update.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>5.4</strong></td>
-                        <td>Close / Delete Voided Ticket</td>
-                        <td><span class="badge badge-critical">Delete</span></td>
-                        <td>Module 5</td>
-                        <td><code>modules/maintenance/delete.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr style="background-color: #fff1f2;">
-                        <td><strong>5.5</strong></td>
-                        <td>Automated Venue Locking on Hazard</td>
-                        <td><span class="badge badge-critical">Unique Feature</span></td>
-                        <td>Module 5</td>
-                        <td><code>services/MaintenanceService.php</code></td>
-                        <td><span class="badge badge-completed">Active &amp; Tested</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>6.1</strong></td>
-                        <td>Submit Session Feedback & Stars</td>
-                        <td><span class="badge badge-low">Create</span></td>
-                        <td>Module 6</td>
-                        <td><code>modules/feedback/submit.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>6.2</strong></td>
-                        <td>View Facility Reviews & Aggregates</td>
-                        <td><span class="badge badge-medium">Retrieve</span></td>
-                        <td>Module 6</td>
-                        <td><code>modules/feedback/index.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>6.3</strong></td>
-                        <td>Edit Review / Post Admin Reply</td>
-                        <td><span class="badge badge-high">Update</span></td>
-                        <td>Module 6</td>
-                        <td><code>modules/feedback/edit.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>6.4</strong></td>
-                        <td>Delete Invalid Review</td>
-                        <td><span class="badge badge-critical">Delete</span></td>
-                        <td>Module 6</td>
-                        <td><code>modules/feedback/delete.php</code></td>
-                        <td><span class="badge badge-completed">Active</span></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
