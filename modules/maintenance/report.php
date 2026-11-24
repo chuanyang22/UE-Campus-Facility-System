@@ -67,12 +67,22 @@ if (!empty($_GET['facility_id']) && $_GET['facility_id'] === 'FAC-04' && isset($
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $postedUrgency = $_POST['UrgencyLevel'] ?? 'Low';
+    if (!in_array($postedUrgency, ['Low', 'Medium', 'High', 'Critical'], true)) {
+        $postedUrgency = 'Low';
+    }
+
+    // If submitting an empty defect form, ensure severity level defaults strictly to Low
+    if (empty($_POST['FacilityID']) && empty($_POST['IssueDescription'])) {
+        $postedUrgency = 'Low';
+    }
+
     $formData = [
         'FacilityID'       => $_POST['FacilityID'] ?? '',
         'DefectCategory'   => $_POST['DefectCategory'] ?? '',
         'ReportedByUserID' => $currentUser['UserID'],
         'IssueDescription' => $_POST['IssueDescription'] ?? '',
-        'UrgencyLevel'     => !empty($_POST['UrgencyLevel']) ? $_POST['UrgencyLevel'] : 'Low',
+        'UrgencyLevel'     => $postedUrgency,
         'ScheduledDate'    => date('Y-m-d'),
     ];
 
@@ -196,7 +206,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </label>
                 <label class="radio-label critical-label">
                     <input type="radio" name="UrgencyLevel" value="Critical" <?= $formData['UrgencyLevel'] === 'Critical' ? 'checked' : '' ?> autocomplete="off">
-                    Critical / Hazardous (Requires Admin Lockdown Approval)
+                    Critical / Hazardous
                 </label>
             </div>
             <?php if (isset($errors['UrgencyLevel'])): ?>
@@ -336,11 +346,16 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCharCounter();
     descTextarea.addEventListener('input', updateCharCounter);
 
-    // Keep track of the currently confirmed urgency level (strictly defaults to Low)
+    // Enforce initial severity level (defaults to Low)
     let currentUrgency = '<?= $formData['UrgencyLevel'] ?>' || 'Low';
-    const initialRadio = document.querySelector(`input[name="UrgencyLevel"][value="${currentUrgency}"]`);
-    if (initialRadio) {
-        initialRadio.checked = true;
+
+    function applyInitialUrgency() {
+        const targetUrgency = '<?= $formData['UrgencyLevel'] ?>' || 'Low';
+        radios.forEach(function(r) {
+            r.checked = (r.value === targetUrgency);
+        });
+        currentUrgency = targetUrgency;
+        updateUrgencyTheme(targetUrgency);
     }
 
     function updateUrgencyTheme(level) {
@@ -378,8 +393,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Initialize display
-    updateUrgencyTheme(currentUrgency);
+    // Initialize display and enforce on pageshow (overriding browser form state cache)
+    applyInitialUrgency();
+    window.addEventListener('pageshow', applyInitialUrgency);
 
     radios.forEach(function(radio) {
         radio.addEventListener('click', function(e) {
