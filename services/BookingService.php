@@ -37,7 +37,7 @@ class BookingService {
     public function getAllFacilitiesWithStats(string $categoryFilter = '', string $search = ''): array {
         $sql = "SELECT f.*, 
                        COUNT(fb.FeedbackID) AS ReviewCount,
-                       ROUND(AVG(fb.OverallScore), 1) AS AvgScore
+                       ROUND(AVG(fb.OverallScore), 2) AS AvgScore
                 FROM facility f
                 LEFT JOIN booking b ON f.FacilityID = b.FacilityID
                 LEFT JOIN feedback fb ON b.BookingID = fb.BookingID

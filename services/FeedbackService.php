@@ -36,6 +36,11 @@ class FeedbackService {
      * @return array [success => bool, message => string, errors => array, id => string|null]
      */
     public function submitFeedback(array $data): array {
+        // Default CleanlinessRating to ConditionRating when unified single-rating UI is used
+        if ((!isset($data['CleanlinessRating']) || $data['CleanlinessRating'] === '') && isset($data['ConditionRating'])) {
+            $data['CleanlinessRating'] = $data['ConditionRating'];
+        }
+
         $errors = $this->validateFeedbackInput($data);
         if (!empty($errors)) {
             return [
@@ -47,8 +52,8 @@ class FeedbackService {
         }
 
         $bookingId    = trim($data['BookingID']);
-        $cleanliness  = (int)$data['CleanlinessRating'];
-        $condition    = (int)$data['ConditionRating'];
+        $cleanliness  = round((float)$data['CleanlinessRating'], 1);
+        $condition    = round((float)$data['ConditionRating'], 1);
         $overallScore = round(($cleanliness + $condition) / 2.0, 1);
         $userComments = !empty($data['UserComments']) ? trim($data['UserComments']) : null;
         $feedbackId   = $this->generateNextFeedbackId();
@@ -178,15 +183,17 @@ class FeedbackService {
                 return ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
             }
         } else {
-            // Student updating Cleanliness, Condition, and UserComments
-            $cleanliness = (int)($data['CleanlinessRating'] ?? 0);
-            $condition   = (int)($data['ConditionRating'] ?? 0);
+            // Student updating rating and UserComments (sync CleanlinessRating if unified single rating used)
+            $condition   = isset($data['ConditionRating']) ? (float)$data['ConditionRating'] : 0.0;
+            $cleanliness = (isset($data['CleanlinessRating']) && $data['CleanlinessRating'] !== '')
+                ? (float)$data['CleanlinessRating']
+                : $condition;
 
-            if ($cleanliness < 1 || $cleanliness > 5) {
-                $errors['CleanlinessRating'] = 'Cleanliness Rating must be an integer between 1 and 5.';
+            if (!$this->isValidHalfStarRating($cleanliness)) {
+                $errors['CleanlinessRating'] = 'Rating must be between 1.0 and 5.0 in 0.5 intervals.';
             }
-            if ($condition < 1 || $condition > 5) {
-                $errors['ConditionRating'] = 'Facility Condition Rating must be between 1 and 5.';
+            if (!$this->isValidHalfStarRating($data['ConditionRating'] ?? null)) {
+                $errors['ConditionRating'] = 'Facility Rating must be between 1.0 and 5.0 in 0.5 intervals.';
             }
 
             $comments = trim($data['UserComments'] ?? '');
@@ -238,9 +245,9 @@ class FeedbackService {
     public function getFacilityRatingsSummary(): array {
         $sql = "SELECT f.FacilityID, f.FacilityName, f.Category, f.LocationBlock, f.AvailabilityStatus,
                        COUNT(fb.FeedbackID) AS TotalReviews,
-                       ROUND(AVG(fb.CleanlinessRating), 1) AS AvgCleanliness,
-                       ROUND(AVG(fb.ConditionRating), 1) AS AvgCondition,
-                       ROUND(AVG(fb.OverallScore), 1) AS AvgOverallScore
+                       ROUND(AVG(fb.CleanlinessRating), 2) AS AvgCleanliness,
+                       ROUND(AVG(fb.ConditionRating), 2) AS AvgCondition,
+                       ROUND(AVG(fb.OverallScore), 2) AS AvgOverallScore
                 FROM facility f
                 LEFT JOIN booking b ON f.FacilityID = b.FacilityID
                 LEFT JOIN feedback fb ON b.BookingID = fb.BookingID
@@ -261,6 +268,29 @@ class FeedbackService {
                 JOIN user u ON b.UserID = u.UserID
                 LEFT JOIN feedback fb ON b.BookingID = fb.BookingID
                 WHERE b.BookingStatus = 'Completed' AND fb.FeedbackID IS NULL";
+        $params = [];
+
+        if ($userId !== null) {
+            $sql .= " AND b.UserID = ?";
+            $params[] = $userId;
+        }
+
+        $sql .= " ORDER BY b.BookingDate DESC, b.EndTime DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Get all Completed bookings for a user (or all users for Admin) along with any existing feedback.
+     */
+    public function getCompletedBookingsWithFeedbackStatus(?string $userId = null): array {
+        $sql = "SELECT b.*, f.FacilityName, f.LocationBlock, f.Category AS FacilityCategory,
+                       fb.FeedbackID, fb.OverallScore
+                FROM booking b
+                JOIN facility f ON b.FacilityID = f.FacilityID
+                LEFT JOIN feedback fb ON b.BookingID = fb.BookingID
+                WHERE b.BookingStatus = 'Completed'";
         $params = [];
 
         if ($userId !== null) {
@@ -305,24 +335,18 @@ class FeedbackService {
             }
         }
 
-        // 2. CleanlinessRating range check (1 to 5)
+        // 2. CleanlinessRating range check (1.0 to 5.0 in 0.5 steps)
         if (!isset($data['CleanlinessRating']) || $data['CleanlinessRating'] === '') {
             $errors['CleanlinessRating'] = 'Cleanliness Rating is mandatory.';
-        } else {
-            $cleanliness = filter_var($data['CleanlinessRating'], FILTER_VALIDATE_INT);
-            if ($cleanliness === false || $cleanliness < 1 || $cleanliness > 5) {
-                $errors['CleanlinessRating'] = 'Cleanliness Rating must be an integer between 1 and 5.';
-            }
+        } elseif (!$this->isValidHalfStarRating($data['CleanlinessRating'])) {
+            $errors['CleanlinessRating'] = 'Cleanliness Rating must be between 1.0 and 5.0 in 0.5 intervals.';
         }
 
-        // 3. ConditionRating range check (1 to 5)
+        // 3. ConditionRating range check (1.0 to 5.0 in 0.5 steps)
         if (!isset($data['ConditionRating']) || $data['ConditionRating'] === '') {
             $errors['ConditionRating'] = 'Facility Condition Rating is mandatory.';
-        } else {
-            $condition = filter_var($data['ConditionRating'], FILTER_VALIDATE_INT);
-            if ($condition === false || $condition < 1 || $condition > 5) {
-                $errors['ConditionRating'] = 'Facility Condition Rating must be an integer between 1 and 5.';
-            }
+        } elseif (!$this->isValidHalfStarRating($data['ConditionRating'])) {
+            $errors['ConditionRating'] = 'Facility Condition Rating must be between 1.0 and 5.0 in 0.5 intervals.';
         }
 
         // 4. UserComments size check (max 1000)
@@ -332,5 +356,19 @@ class FeedbackService {
         }
 
         return $errors;
+    }
+
+    /**
+     * Validate that a rating is between 1.0 and 5.0 in 0.5 increments.
+     */
+    private function isValidHalfStarRating($value): bool {
+        if (!is_numeric($value)) {
+            return false;
+        }
+        $num = (float)$value;
+        if ($num < 1.0 || $num > 5.0) {
+            return false;
+        }
+        return abs(($num * 2.0) - round($num * 2.0)) < 0.001;
     }
 }

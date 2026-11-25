@@ -16,12 +16,32 @@ declare(strict_types=1);
             <p>&copy; <?= date('Y') ?> Assignment Team. All rights reserved.</p>
         </div>
         <ul class="footer-modules">
-            <li><a href="<?= $baseUrl ?>modules/maintenance/index.php">Facility Maintenance &amp; Damage Reporting</a></li>
-            <li><a href="<?= $baseUrl ?>modules/feedback/index.php">User Feedback &amp; Reviews</a></li>
+            <li><a href="<?= $baseUrl ?>modules/maintenance/index.php"><?= htmlspecialchars(t('footer_maint')) ?></a></li>
+            <li><a href="<?= $baseUrl ?>modules/feedback/index.php"><?= htmlspecialchars(t('footer_fb')) ?></a></li>
         </ul>
     </div>
 </footer>
 
+<script>
+function updateThemeBtnIcon() {
+    var btn = document.getElementById('themeToggleBtn');
+    if (!btn) return;
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = isDark ? '☀️' : '🌙';
+}
+function toggleUeTheme() {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('ue_theme', 'light');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('ue_theme', 'dark');
+    }
+    updateThemeBtnIcon();
+}
+document.addEventListener('DOMContentLoaded', updateThemeBtnIcon);
+</script>
 <script src="<?= $baseUrl ?>assets/js/app.js"></script>
 </body>
 </html>

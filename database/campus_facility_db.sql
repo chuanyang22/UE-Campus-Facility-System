@@ -113,8 +113,8 @@ DROP TABLE IF EXISTS `feedback`;
 CREATE TABLE `feedback` (
   `FeedbackID` varchar(10) NOT NULL,
   `BookingID` varchar(10) NOT NULL,
-  `CleanlinessRating` int(11) NOT NULL CHECK (`CleanlinessRating` between 1 and 5),
-  `ConditionRating` int(11) NOT NULL CHECK (`ConditionRating` between 1 and 5),
+  `CleanlinessRating` decimal(2,1) NOT NULL CHECK (`CleanlinessRating` between 1.0 and 5.0),
+  `ConditionRating` decimal(2,1) NOT NULL CHECK (`ConditionRating` between 1.0 and 5.0),
   `OverallScore` decimal(2,1) NOT NULL,
   `UserComments` text DEFAULT NULL,
   `AdminRemarks` varchar(300) DEFAULT NULL,
@@ -167,7 +167,7 @@ CREATE TABLE `user` (
   `FullName` varchar(100) NOT NULL,
   `CampusEmail` varchar(100) NOT NULL,
   `PhoneNo` varchar(15) NOT NULL,
-  `UserRole` enum('Student','Staff','Admin') NOT NULL,
+  `UserRole` enum('Student','Staff','Admin','Technician') NOT NULL,
   `AccountStatus` enum('Active','Suspended','Inactive') DEFAULT 'Active',
   `PasswordHash` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -180,7 +180,8 @@ INSERT INTO `user` (`UserID`, `FullName`, `CampusEmail`, `PhoneNo`, `UserRole`, 
 ('U1001', 'Alex Tan', 'alextan@student.campus.edu', '012-3456789', 'Student', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
 ('U1002', 'Sarah Lee', 'sarahlee@student.campus.edu', '013-8899776', 'Student', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
 ('U1003', 'Dr. Farhan Azman', 'farhan@staff.campus.edu', '017-4455661', 'Staff', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
-('U1004', 'Admin Facilities', 'admin@campus.edu', '019-9988770', 'Admin', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm');
+('U1004', 'Admin Facilities', 'admin@campus.edu', '019-9988770', 'Admin', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
+('T0001', 'Encik Hafiz Rahman', 'hafiz.tech@campus.edu', '012-7788990', 'Technician', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm');
 
 --
 -- Indexes for dumped tables

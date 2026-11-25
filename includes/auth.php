@@ -1,7 +1,7 @@
 <?php
 /**
  * Auth & Session Management Helper
- * AMCS2194 Mini Project — Supports A240112 (Student) & S0012 (Admin)
+ * AMCS2194 Mini Project — Supports A240112 (Student), T0001 (Technician) & S0012 (Admin)
  */
 
 declare(strict_types=1);
@@ -15,7 +15,7 @@ require_once __DIR__ . '/db.php';
 class AuthService {
     public static function getDemoUsers(): array {
         $db = getDB();
-        $stmt = $db->query('SELECT UserID, FullName, CampusEmail, UserRole, AccountStatus FROM user WHERE UserID IN ("A240112", "S0012", "U1001", "U1004") ORDER BY UserRole DESC, UserID ASC');
+        $stmt = $db->query('SELECT UserID, FullName, CampusEmail, UserRole, AccountStatus FROM user WHERE UserID IN ("A240112", "T0001", "S0012", "U1001", "U1004") ORDER BY UserRole DESC, UserID ASC');
         return $stmt->fetchAll();
     }
 
@@ -45,6 +45,16 @@ class AuthService {
     public static function isAdmin(): bool {
         $user = self::getCurrentUser();
         return ($user['UserRole'] ?? '') === 'Admin';
+    }
+
+    public static function isTechnician(): bool {
+        $user = self::getCurrentUser();
+        return ($user['UserRole'] ?? '') === 'Technician';
+    }
+
+    public static function isMaintenanceStaff(): bool {
+        $user = self::getCurrentUser();
+        return in_array($user['UserRole'] ?? '', ['Admin', 'Technician'], true);
     }
 
     public static function isStudent(): bool {

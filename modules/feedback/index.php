@@ -17,6 +17,11 @@ $service = new FeedbackService();
 $currentUser = AuthService::getCurrentUser();
 $isAdmin = AuthService::isAdmin();
 
+if (AuthService::isTechnician()) {
+    header('Location: ../maintenance/index.php');
+    exit;
+}
+
 // Determine filtered facility (default to FAC-04 to match mockup UI 6.2, or all)
 $selectedFacilityId = $_GET['facility_id'] ?? 'FAC-04';
 
@@ -30,21 +35,31 @@ if (!empty($selectedFacilityId) && $selectedFacilityId !== 'ALL') {
 }
 $reviews = $service->getReviews($filters);
 
-// Find metadata and aggregates for the selected facility
+// Find metadata and aggregates for the selected facility (or All)
 $activeSummary = null;
-foreach ($summaries as $s) {
-    if ($s['FacilityID'] === $selectedFacilityId) {
-        $activeSummary = $s;
-        break;
+if ($selectedFacilityId === 'ALL') {
+    $displayFacilityName = 'All Campus Facilities';
+    $reviewCount = count($reviews);
+    if ($reviewCount > 0) {
+        $sum = array_sum(array_map(fn($r) => (float)$r['OverallScore'], $reviews));
+        $avgOverall = rtrim(rtrim(number_format(round($sum / $reviewCount, 2), 2, '.', ''), '0'), '.');
+    } else {
+        $avgOverall = '0';
     }
-}
+} else {
+    foreach ($summaries as $s) {
+        if ($s['FacilityID'] === $selectedFacilityId) {
+            $activeSummary = $s;
+            break;
+        }
+    }
 
-// Fallback / mockup metrics for FAC-04 if fresh db has limited rows
-$displayFacilityName = $activeSummary ? $activeSummary['FacilityName'] . ' (' . $activeSummary['LocationBlock'] . ')' : 'Discussion Room B2 (Library Block B)';
-$reviewCount = $activeSummary && (int)$activeSummary['TotalReviews'] > 0 ? (int)$activeSummary['TotalReviews'] : 42;
-// If Discussion Room B2, show mockup averages (4.6 / 4.8) or computed values
-$avgOverall = $activeSummary && $activeSummary['AvgOverallScore'] !== null ? number_format((float)$activeSummary['AvgOverallScore'], 1) : '4.6';
-$avgCleanliness = $activeSummary && $activeSummary['AvgCleanliness'] !== null ? number_format((float)$activeSummary['AvgCleanliness'], 1) : '4.8';
+    $displayFacilityName = $activeSummary ? $activeSummary['FacilityName'] . ' (' . $activeSummary['LocationBlock'] . ')' : 'Discussion Room B2 (Library Block B)';
+    $reviewCount = $activeSummary ? (int)$activeSummary['TotalReviews'] : 0;
+    $avgOverall = $activeSummary && $activeSummary['AvgOverallScore'] !== null
+        ? rtrim(rtrim(number_format((float)$activeSummary['AvgOverallScore'], 2, '.', ''), '0'), '.')
+        : '0';
+}
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -52,8 +67,8 @@ require_once __DIR__ . '/../../includes/header.php';
 <!-- Page Header Block -->
 <div class="page-header-row">
     <div>
-        <h1 class="page-title">Facility Reviews &amp; Average Rating Summary</h1>
-        <p class="page-subtitle">Browse verified student reviews and edit your own submitted feedback.</p>
+        <h1 class="page-title"><?= htmlspecialchars(t('fb_title')) ?></h1>
+        <p class="page-subtitle"><?= htmlspecialchars(t('fb_sub')) ?></p>
     </div>
 
     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
@@ -71,11 +86,11 @@ require_once __DIR__ . '/../../includes/header.php';
 
         <?php if ($isAdmin): ?>
             <a href="edit.php" class="btn btn-outline-blue" style="padding: 0.55rem 1rem; font-size: 0.88rem;">
-                Admin Moderation &rarr;
+                <?= htmlspecialchars(t('btn_admin_mod')) ?>
             </a>
         <?php else: ?>
-            <a href="submit.php" class="btn btn-primary-blue" style="padding: 0.55rem 1.1rem; font-size: 0.88rem;">
-                + Submit Feedback
+            <a href="completed.php" class="btn btn-primary-blue" style="padding: 0.55rem 1.1rem; font-size: 0.88rem;">
+                <?= htmlspecialchars(t('btn_submit_feedback')) ?>
             </a>
         <?php endif; ?>
     </div>
@@ -92,12 +107,8 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <div class="facility-summary-scores">
         <div class="score-col">
-            <div class="score-num-blue"><?= htmlspecialchars((string)$avgOverall) ?> / 5.0</div>
-            <div class="score-label">Avg Overall Rating</div>
-        </div>
-        <div class="score-col">
-            <div class="score-num-green"><?= htmlspecialchars((string)$avgCleanliness) ?> / 5.0</div>
-            <div class="score-label">Avg Cleanliness Score</div>
+            <div class="score-num-blue"><?= htmlspecialchars((string)$avgOverall) ?> / 5</div>
+            <div class="score-label"><?= htmlspecialchars(t('avg_rating_label')) ?></div>
         </div>
     </div>
 </div>
@@ -106,12 +117,12 @@ require_once __DIR__ . '/../../includes/header.php';
 <?php if (empty($reviews)): ?>
     <div class="ui-card" style="text-align: center; padding: 3rem 1.5rem; color: var(--text-muted);">
         <p style="font-size: 1.05rem; margin-bottom: 1rem;">No reviews have been submitted for this facility yet.</p>
-        <a href="submit.php" class="btn btn-primary-blue">+ Be the first to submit a review (FR-6.1)</a>
+        <a href="completed.php" class="btn btn-primary-blue">+ Be the first to submit a review</a>
     </div>
 <?php else: ?>
     <?php foreach ($reviews as $rev): 
-        $isOwnReview = ($rev['UserID'] === $currentUser['id']);
-        $starsCount = (int)round((float)$rev['OverallScore']);
+        $isOwnReview = ($rev['UserID'] === ($currentUser['UserID'] ?? ''));
+        $overallVal = (float)$rev['OverallScore'];
         $submissionDateFormatted = date('d M Y', strtotime($rev['SubmissionDate']));
     ?>
         <div class="review-item-card">
@@ -119,8 +130,10 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="review-item-header">
                 <div>
                     <span class="review-author">
-                        <?= htmlspecialchars($rev['UserID']) ?> 
-                        <?= $isOwnReview ? '<span style="color: #475569; font-weight: 600;">(Your Review &mdash; Booking #' . htmlspecialchars($rev['BookingID']) . ')</span>' : '<span style="color: #64748b; font-weight: 400;">(' . htmlspecialchars($rev['ReviewerName']) . ' &bull; #' . htmlspecialchars($rev['BookingID']) . ')</span>' ?>
+                        <?= htmlspecialchars($rev['ReviewerName'] ?? 'Campus User') ?>
+                        <?php if ($isOwnReview): ?>
+                            <span style="color: var(--text-muted); font-weight: 600;"><?= htmlspecialchars(t('your_review_tag')) ?></span>
+                        <?php endif; ?>
                         &bull; <?= htmlspecialchars($submissionDateFormatted) ?>
                     </span>
                 </div>
@@ -128,18 +141,26 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                     <span class="review-stars-text">
                         <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <?= $i <= $starsCount ? '★' : '☆' ?>
+                            <?php
+                                $starClass = '';
+                                if ($overallVal >= $i) {
+                                    $starClass = 'full';
+                                } elseif ($overallVal >= $i - 0.5) {
+                                    $starClass = 'half';
+                                }
+                            ?>
+                            <span class="review-star-icon <?= $starClass ?>">&#9733;</span>
                         <?php endfor; ?>
-                        (<?= (int)$rev['ConditionRating'] ?>/5) | Cleanliness: <?= (int)$rev['CleanlinessRating'] ?>/5
+                        (<?= rtrim(rtrim(number_format($overallVal, 2, '.', ''), '0'), '.') ?>/5)
                     </span>
 
                     <?php if ($isOwnReview): ?>
                         <a href="edit.php?id=<?= urlencode($rev['FeedbackID']) ?>" class="btn btn-cancel" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; border-color: #cbd5e1; font-weight: 600;">
-                            Edit My Review
+                            <?= htmlspecialchars(t('btn_edit_my_review')) ?>
                         </a>
                     <?php elseif ($isAdmin): ?>
                         <a href="edit.php?id=<?= urlencode($rev['FeedbackID']) ?>" class="btn btn-outline-blue" style="padding: 0.35rem 0.85rem; font-size: 0.82rem;">
-                            Moderate / Reply
+                            <?= htmlspecialchars(t('btn_moderate_reply')) ?>
                         </a>
                     <?php endif; ?>
                 </div>

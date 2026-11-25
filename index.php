@@ -22,6 +22,12 @@ $feedbackService = new FeedbackService();
 $currentUser = AuthService::getCurrentUser();
 $isAdmin = AuthService::isAdmin();
 
+// Technicians only view Maintenance
+if (AuthService::isTechnician()) {
+    header('Location: modules/maintenance/index.php');
+    exit;
+}
+
 // Handle QR Check-in or Auto-Release actions
 $checkInResult = null;
 $autoReleaseResult = null;
@@ -81,40 +87,40 @@ require_once __DIR__ . '/includes/header.php';
 <?php endif; ?>
 
 <!-- Hero Section: Campus Facility Booking Portal -->
-<div class="ui-card" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 2.25rem 2.5rem; margin-bottom: 2rem; border-color: #334155; border-radius: 12px;">
+<div class="ui-card hero-banner-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
         <div style="max-width: 720px;">
-            <div style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 9999px; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                TAR UMT Centralized Campus Facility Booking Portal
+            <div style="display: inline-block; background: #ffffff; color: #2563eb; border: 1px solid #bfdbfe; font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 9999px; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <?= htmlspecialchars(t('hero_badge')) ?>
             </div>
-            <h1 style="font-size: 2.2rem; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 0.6rem;">
-                UE Campus Facility Booking System
+            <h1 style="font-size: 2.2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; margin-bottom: 0.6rem;">
+                <?= htmlspecialchars(t('hero_title')) ?>
             </h1>
-            <p style="color: #94a3b8; font-size: 1rem; line-height: 1.6; margin: 0 0 1.25rem 0;">
-                Reserve sports courts and academic discussion rooms in real time. Use your dynamic QR code for swift on-site entrance verification, or lodge maintenance defect reports and feedback to keep campus facilities in top condition.
+            <p style="color: #334155; font-size: 1rem; line-height: 1.6; margin: 0 0 1.25rem 0;">
+                <?= htmlspecialchars(t('hero_subtitle')) ?>
             </p>
             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
                 <a href="#facility-directory" class="btn btn-primary-blue" style="font-weight: 700; padding: 0.7rem 1.4rem;">
-                    Browse Available Facilities &darr;
+                    <?= htmlspecialchars(t('btn_browse_facilities')) ?>
                 </a>
-                <a href="#my-reservations" class="btn btn-cancel" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #ffffff; font-weight: 600; padding: 0.7rem 1.2rem;">
-                    My Reservations &amp; QR Check-In &darr;
+                <a href="#my-reservations" class="btn btn-outline-blue" style="font-weight: 600; padding: 0.7rem 1.2rem; font-size: 0.9rem;">
+                    <?= htmlspecialchars(t('btn_my_reservations')) ?>
                 </a>
             </div>
         </div>
 
         <!-- Quick Portal Navigation Tile -->
-        <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 1.25rem 1.5rem; min-width: 270px;">
-            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;">Quick Actions</div>
+        <div class="hero-quick-actions">
+            <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;"><?= htmlspecialchars(t('quick_actions')) ?></div>
             <div style="display: flex; flex-direction: column; gap: 0.55rem;">
                 <a href="modules/maintenance/report.php" class="btn btn-primary-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
-                    + Report Facility Defect
+                    <?= htmlspecialchars(t('btn_report_defect')) ?>
                 </a>
-                <a href="modules/feedback/submit.php" class="btn btn-cancel" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #ffffff; font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
-                    + Rate Completed Session
+                <a href="modules/feedback/completed.php" class="btn btn-outline-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
+                    <?= htmlspecialchars(t('btn_rate_completed')) ?>
                 </a>
-                <a href="modules/feedback/index.php" class="btn btn-cancel" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); color: #94a3b8; font-size: 0.85rem; text-align: left; padding: 0.5rem 0.9rem;">
-                    Browse Facility Reviews &rarr;
+                <a href="modules/feedback/index.php" class="btn btn-cancel" style="font-size: 0.85rem; text-align: left; padding: 0.5rem 0.9rem;">
+                    <?= htmlspecialchars(t('btn_view_reviews')) ?>
                 </a>
             </div>
         </div>
@@ -127,24 +133,24 @@ require_once __DIR__ . '/includes/header.php';
 <div id="my-reservations" style="margin-bottom: 2.5rem;">
     <div class="page-header-row" style="margin-bottom: 1rem;">
         <div>
-            <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem;">
-                My Active &amp; Upcoming Reservations
+            <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--text-heading); margin-bottom: 0.2rem;">
+                <?= htmlspecialchars(t('sec_reservations')) ?>
             </h2>
-            <p style="color: #64748b; font-size: 0.9rem; margin: 0;">
-                View your confirmed booking sessions and tap <strong>QR Check-In</strong> upon arriving at the venue.
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+                <?= htmlspecialchars(t('sec_reservations_sub')) ?>
             </p>
         </div>
         <div>
-            <span style="font-size: 0.85rem; font-weight: 600; color: #475569; background: #f1f5f9; padding: 0.35rem 0.75rem; border-radius: 9999px;">
-                User: <?= htmlspecialchars($currentUser['FullName'] ?? 'Student') ?> (<?= htmlspecialchars($currentUser['UserID']) ?>)
+            <span class="user-pill-chip">
+                <?= htmlspecialchars($currentUser['FullName'] ?? 'Student') ?> (<?= htmlspecialchars($currentUser['UserID']) ?>)
             </span>
         </div>
     </div>
 
     <?php if (empty($userBookings)): ?>
         <div class="ui-card" style="text-align: center; padding: 2.5rem;">
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1rem;">You currently have no active facility bookings.</p>
-            <a href="#facility-directory" class="btn btn-primary-blue">Book a Campus Facility Now</a>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;"><?= htmlspecialchars(t('no_bookings_msg')) ?></p>
+            <a href="#facility-directory" class="btn btn-primary-blue"><?= htmlspecialchars(t('btn_book_now')) ?></a>
         </div>
     <?php else: ?>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.25rem;">
@@ -157,6 +163,13 @@ require_once __DIR__ . '/includes/header.php';
                     'No-Show'     => 'pill-critical',
                     default       => 'pill-medium'
                 };
+                $statusLabel = match($status) {
+                    'Confirmed'   => t('status_confirmed'),
+                    'Checked-In'  => t('status_checked_in'),
+                    'Completed'   => t('status_completed'),
+                    'No-Show'     => t('status_no_show'),
+                    default       => $status
+                };
                 $isToday = ($b['BookingDate'] === date('Y-m-d'));
             ?>
                 <div class="ui-card" style="margin: 0; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid <?= $status === 'Checked-In' ? '#10b981' : ($status === 'Confirmed' ? '#2563eb' : '#94a3b8') ?>;">
@@ -164,62 +177,62 @@ require_once __DIR__ . '/includes/header.php';
                         <!-- Header with Status -->
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem;">
                             <div>
-                                <span style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase;">
-                                    Booking #<?= htmlspecialchars($b['BookingID']) ?>
+                                <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                                    <?= htmlspecialchars(t('lbl_booking')) ?> #<?= htmlspecialchars($b['BookingID']) ?>
                                 </span>
-                                <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0.15rem 0 0 0;">
+                                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin: 0.15rem 0 0 0;">
                                     <?= htmlspecialchars($b['FacilityName']) ?>
                                 </h3>
                             </div>
                             <span class="pill-badge <?= $statusBadgeClass ?>" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">
-                                <?= htmlspecialchars($status) ?>
+                                <?= htmlspecialchars($statusLabel) ?>
                             </span>
                         </div>
 
                         <!-- Venue Details -->
-                        <div style="font-size: 0.88rem; color: #475569; margin-bottom: 0.85rem; line-height: 1.5;">
-                            <div>&#128205; <strong>Location:</strong> <?= htmlspecialchars($b['LocationBlock']) ?></div>
-                            <div>&#128197; <strong>Date:</strong> <?= htmlspecialchars(date('D, d M Y', strtotime($b['BookingDate']))) ?> <?= $isToday ? '<strong style="color: #2563eb;">(Today)</strong>' : '' ?></div>
-                            <div>&#128337; <strong>Time:</strong> <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> &ndash; <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?></div>
-                            <div style="color: #64748b; font-size: 0.82rem; margin-top: 0.25rem;">Purpose: <?= htmlspecialchars($b['Purpose']) ?></div>
+                        <div style="font-size: 0.88rem; color: var(--text-body); margin-bottom: 0.85rem; line-height: 1.5;">
+                            <div>&#128205; <strong><?= htmlspecialchars(t('lbl_location')) ?></strong> <?= htmlspecialchars($b['LocationBlock']) ?></div>
+                            <div>&#128197; <strong><?= htmlspecialchars(t('lbl_date')) ?></strong> <?= htmlspecialchars(date('D, d M Y', strtotime($b['BookingDate']))) ?> <?= $isToday ? '<strong style="color: #3b82f6;">' . htmlspecialchars(t('lbl_today')) . '</strong>' : '' ?></div>
+                            <div>&#128337; <strong><?= htmlspecialchars(t('lbl_time')) ?></strong> <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> &ndash; <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?></div>
+                            <div style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.25rem;"><?= htmlspecialchars(t('lbl_purpose')) ?> <?= htmlspecialchars($b['Purpose']) ?></div>
                         </div>
 
                         <!-- Check-In Status Information -->
                         <?php if ($status === 'Checked-In' && !empty($b['CheckInTime'])): ?>
                             <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #065f46;">
-                                <strong>&#10003; Attendance Verified:</strong> Checked in at <?= htmlspecialchars(date('d M Y, H:i', strtotime($b['CheckInTime']))) ?>
+                                <strong>&#10003; <?= htmlspecialchars(t('msg_checked_in_at')) ?></strong> <?= htmlspecialchars(date('d M Y, H:i', strtotime($b['CheckInTime']))) ?>
                             </div>
                         <?php elseif ($status === 'No-Show'): ?>
                             <div style="background-color: #fef2f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #991b1b;">
-                                <strong>&#9888; Expired No-Show:</strong> Check-in window passed (15-min limit). Facility released.
+                                <strong>&#9888;</strong> <?= htmlspecialchars(t('msg_expired_noshow')) ?>
                             </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Action Bar -->
-                    <div style="display: flex; gap: 0.5rem; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 0.85rem; margin-top: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.5rem;">
                         <?php if ($status === 'Confirmed'): ?>
                             <button type="button" 
                                     class="btn btn-primary-blue" 
                                     onclick="openQrModal('<?= htmlspecialchars($b['BookingID']) ?>', '<?= htmlspecialchars($b['FacilityName'], ENT_QUOTES) ?>', '<?= htmlspecialchars($b['BookingDate']) ?>', '<?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> - <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>')" 
                                     style="flex: 1; padding: 0.55rem; font-size: 0.85rem; font-weight: 700; display: inline-flex; justify-content: center; align-items: center; gap: 0.4rem;">
-                                &#128241; QR Check-In
+                                &#128241; <?= htmlspecialchars(t('btn_qr_checkin')) ?>
                             </button>
                         <?php elseif ($status === 'Checked-In'): ?>
                             <button type="button" 
                                     class="btn btn-cancel" 
                                     onclick="openQrModal('<?= htmlspecialchars($b['BookingID']) ?>', '<?= htmlspecialchars($b['FacilityName'], ENT_QUOTES) ?>', '<?= htmlspecialchars($b['BookingDate']) ?>', '<?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> - <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>', true)" 
                                     style="flex: 1; padding: 0.55rem; font-size: 0.85rem;">
-                                View Pass / QR
+                                <?= htmlspecialchars(t('btn_view_qr')) ?>
                             </button>
                         <?php elseif ($status === 'Completed'): ?>
                             <a href="modules/feedback/submit.php?booking_id=<?= urlencode($b['BookingID']) ?>" class="btn btn-outline-blue" style="flex: 1; padding: 0.55rem; font-size: 0.85rem; text-align: center;">
-                                &#9997; Rate &amp; Review
+                                &#9997; <?= htmlspecialchars(t('btn_rate_review')) ?>
                             </a>
                         <?php endif; ?>
 
-                        <a href="modules/maintenance/report.php?facility_id=<?= urlencode($b['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.55rem 0.75rem; font-size: 0.82rem;" title="Report defect for this venue">
-                            Report Defect
+                        <a href="modules/maintenance/report.php?facility_id=<?= urlencode($b['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.55rem 0.75rem; font-size: 0.82rem;">
+                            <?= htmlspecialchars(t('btn_report_short')) ?>
                         </a>
                     </div>
                 </div>
@@ -231,32 +244,32 @@ require_once __DIR__ . '/includes/header.php';
 <!-- ======================================================== -->
 <!-- UNIQUE FEATURE: 15-MINUTE NO-SHOW AUTO-RELEASE DEMO      -->
 <!-- ======================================================== -->
-<div id="no-show-engine" class="ui-card" style="background: #faf5ff; border: 1.5px solid #e9d5ff; border-radius: 12px; padding: 1.5rem 1.75rem; margin-bottom: 2.5rem;">
+<div id="no-show-engine" class="ui-card auto-release-card">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
         <div style="max-width: 750px;">
-            <div style="display: inline-block; background: #f3e8ff; color: #7e22ce; font-weight: 700; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 9999px; margin-bottom: 0.5rem; text-transform: uppercase;">
-                Unique Feature Demonstration (Student 2: Tie Sing Wee)
+            <div class="auto-release-badge">
+                <?= htmlspecialchars(t('uf_badge')) ?>
             </div>
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: #581c87; margin: 0 0 0.4rem 0;">
-                15-Minute No-Show Auto-Release Engine
+            <h3 class="auto-release-title">
+                <?= htmlspecialchars(t('uf_title')) ?>
             </h3>
-            <p style="color: #6b21a8; font-size: 0.88rem; line-height: 1.5; margin: 0;">
-                Prevents venue hoarding and idle courts. If a student does not perform a QR check-in within <strong>15 minutes</strong> of their reserved session start time, the auto-release engine cancels the reservation as <strong>No-Show</strong> and unlocks the time slot for other students.
+            <p class="auto-release-desc">
+                <?= htmlspecialchars(t('uf_desc')) ?>
             </p>
         </div>
 
         <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
             <form method="POST" action="index.php" style="margin: 0;">
                 <input type="hidden" name="action" value="seed_overdue_demo">
-                <button type="submit" class="btn btn-cancel" style="font-size: 0.82rem; padding: 0.55rem 0.9rem;" title="Seed a test session scheduled 25 minutes ago">
-                    + Seed Overdue Test Session
+                <button type="submit" class="btn btn-cancel" style="font-size: 0.82rem; padding: 0.55rem 0.9rem;">
+                    <?= htmlspecialchars(t('btn_seed_overdue')) ?>
                 </button>
             </form>
 
             <form method="POST" action="index.php" style="margin: 0;">
                 <input type="hidden" name="action" value="run_auto_release">
                 <button type="submit" class="btn btn-primary-blue" style="background-color: #7e22ce; border-color: #6b21a8; font-size: 0.82rem; padding: 0.55rem 1.1rem; font-weight: 700;">
-                    &#9889; Run Auto-Release Engine Now
+                    <?= htmlspecialchars(t('btn_run_autorelease')) ?>
                 </button>
             </form>
         </div>
@@ -269,24 +282,24 @@ require_once __DIR__ . '/includes/header.php';
 <div id="facility-directory" style="margin-bottom: 2.5rem;">
     <div class="page-header-row" style="margin-bottom: 1.25rem;">
         <div>
-            <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem;">
-                Browse Campus Facilities
+            <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--text-heading); margin-bottom: 0.2rem;">
+                <?= htmlspecialchars(t('sec_facilities')) ?>
             </h2>
-            <p style="color: #64748b; font-size: 0.9rem; margin: 0;">
-                Explore sports courts and academic study rooms. Check verified ratings and availability before booking.
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+                <?= htmlspecialchars(t('sec_facilities_sub')) ?>
             </p>
         </div>
 
         <!-- Filter & Search Controls -->
         <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <a href="index.php?category=ALL#facility-directory" class="btn <?= $categoryFilter === 'ALL' ? 'btn-primary-blue' : 'btn-cancel' ?>" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
-                All Facilities
+                <?= htmlspecialchars(t('filter_all')) ?>
             </a>
             <a href="index.php?category=Sports#facility-directory" class="btn <?= $categoryFilter === 'Sports' ? 'btn-primary-blue' : 'btn-cancel' ?>" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
-                &#127992; Sports Facilities
+                &#127992; <?= htmlspecialchars(t('filter_sports')) ?>
             </a>
             <a href="index.php?category=Academic#facility-directory" class="btn <?= $categoryFilter === 'Academic' ? 'btn-primary-blue' : 'btn-cancel' ?>" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
-                &#128218; Academic Facilities
+                &#128218; <?= htmlspecialchars(t('filter_academic')) ?>
             </a>
         </div>
     </div>
@@ -295,7 +308,7 @@ require_once __DIR__ . '/includes/header.php';
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
         <?php foreach ($facilities as $f): 
             $isAvailable = ($f['AvailabilityStatus'] === 'Available');
-            $avgScore = $f['AvgScore'] ? number_format((float)$f['AvgScore'], 1) : 'New';
+            $avgScore = $f['AvgScore'] ? rtrim(rtrim(number_format((float)$f['AvgScore'], 2, '.', ''), '0'), '.') : 'New';
             $reviewsCount = (int)$f['ReviewCount'];
         ?>
             <div class="ui-card" style="margin: 0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; border-radius: 10px;">
@@ -308,32 +321,32 @@ require_once __DIR__ . '/includes/header.php';
 
                         <?php if ($isAvailable): ?>
                             <span class="pill-badge pill-low" style="font-size: 0.78rem;">
-                                &#10003; Available
+                                &#10003; <?= htmlspecialchars(t('status_available')) ?>
                             </span>
                         <?php else: ?>
                             <span class="pill-badge pill-critical" style="font-size: 0.78rem;">
-                                &#9888; Under Maintenance
+                                &#9888; <?= htmlspecialchars(t('status_maintenance')) ?>
                             </span>
                         <?php endif; ?>
                     </div>
 
                     <!-- Facility Name & ID -->
-                    <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.35rem 0;">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-heading); margin: 0 0 0.35rem 0;">
                         <?= htmlspecialchars($f['FacilityName']) ?>
                     </h3>
-                    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
                         <?= htmlspecialchars($f['FacilityID']) ?> &bull; <?= htmlspecialchars($f['LocationBlock']) ?>
                     </div>
 
                     <!-- Details: Capacity & Reviews -->
-                    <div style="display: flex; gap: 1rem; align-items: center; font-size: 0.85rem; color: #475569; margin-bottom: 1.25rem; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; padding: 0.6rem 0;">
+                    <div style="display: flex; gap: 1rem; align-items: center; font-size: 0.85rem; color: var(--text-body); margin-bottom: 1.25rem; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 0.6rem 0;">
                         <div>
-                            <strong>Capacity:</strong> <?= htmlspecialchars((string)$f['Capacity']) ?> pax
+                            <strong><?= htmlspecialchars(t('lbl_capacity')) ?></strong> <?= htmlspecialchars((string)$f['Capacity']) ?> <?= htmlspecialchars(t('lbl_pax')) ?>
                         </div>
                         <div>&bull;</div>
                         <div>
                             <span style="color: #d97706; font-weight: 700;">★ <?= $avgScore ?></span>
-                            <span style="color: #94a3b8; font-size: 0.8rem;">(<?= $reviewsCount ?> reviews)</span>
+                            <span style="color: var(--text-muted); font-size: 0.8rem;">(<?= $reviewsCount ?> <?= htmlspecialchars(t('lbl_reviews_count')) ?>)</span>
                         </div>
                     </div>
                 </div>
@@ -341,20 +354,20 @@ require_once __DIR__ . '/includes/header.php';
                 <!-- Action Controls -->
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <?php if ($isAvailable): ?>
-                        <button type="button" onclick="alert('Facility Booking Module (Module 1/3): Ready for reservations! In a full multi-user deployment, choosing this initiates slot selection for <?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>.');" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
-                            Quick Book
+                        <button type="button" onclick="alert('Facility Booking Module: Ready for reservations! Initiating slot selection for <?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>.');" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
+                            <?= htmlspecialchars(t('btn_quick_book')) ?>
                         </button>
                     <?php else: ?>
                         <button type="button" disabled class="btn btn-cancel" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; cursor: not-allowed; opacity: 0.6;">
-                            Locked for Maintenance
+                            <?= htmlspecialchars(t('btn_locked_maint')) ?>
                         </button>
                     <?php endif; ?>
 
-                    <a href="modules/feedback/index.php?facility_id=<?= urlencode($f['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;" title="View verified reviews">
-                        Reviews
+                    <a href="modules/feedback/index.php?facility_id=<?= urlencode($f['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                        <?= htmlspecialchars(t('btn_reviews')) ?>
                     </a>
-                    <a href="modules/maintenance/report.php?facility_id=<?= urlencode($f['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;" title="Report defect">
-                        Report
+                    <a href="modules/maintenance/report.php?facility_id=<?= urlencode($f['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                        <?= htmlspecialchars(t('btn_report')) ?>
                     </a>
                 </div>
             </div>
@@ -363,22 +376,22 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <!-- ======================================================== -->
-<!-- SECTION 3: QUICK SERVICES TILES (MODULES 5 & 6 ACCESS)    -->
+<!-- SECTION 3: QUICK SERVICES TILES                          -->
 <!-- ======================================================== -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
     <!-- Service 1: Report Defect -->
     <div class="ui-card" style="padding: 1.5rem; margin: 0; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">&#128295;</div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.4rem;">
-                Report Facility Defect
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.4rem;">
+                <?= htmlspecialchars(t('srv_defect_title')) ?>
             </h3>
-            <p style="font-size: 0.88rem; color: #64748b; line-height: 1.5; margin: 0 0 1rem 0;">
-                Found broken equipment, faulty lighting, or an electrical issue? Lodge a maintenance ticket with category filtering and real-time technician tracking.
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 1rem 0;">
+                <?= htmlspecialchars(t('srv_defect_desc')) ?>
             </p>
         </div>
         <a href="modules/maintenance/report.php" class="btn btn-primary-blue" style="font-size: 0.85rem; text-align: center;">
-            Lodge Defect Ticket &rarr;
+            <?= htmlspecialchars(t('srv_defect_btn')) ?>
         </a>
     </div>
 
@@ -386,15 +399,15 @@ require_once __DIR__ . '/includes/header.php';
     <div class="ui-card" style="padding: 1.5rem; margin: 0; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">&#11088;</div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.4rem;">
-                Rate &amp; Review Session
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.4rem;">
+                <?= htmlspecialchars(t('srv_rate_title')) ?>
             </h3>
-            <p style="font-size: 0.88rem; color: #64748b; line-height: 1.5; margin: 0 0 1rem 0;">
-                Completed your booking session? Share your feedback on venue cleanliness and equipment quality to guide other students and campus facilities staff.
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 1rem 0;">
+                <?= htmlspecialchars(t('srv_rate_desc')) ?>
             </p>
         </div>
-        <a href="modules/feedback/submit.php" class="btn btn-primary-blue" style="font-size: 0.85rem; text-align: center;">
-            Submit Session Review &rarr;
+        <a href="modules/feedback/completed.php" class="btn btn-primary-blue" style="font-size: 0.85rem; text-align: center;">
+            <?= htmlspecialchars(t('srv_rate_btn')) ?>
         </a>
     </div>
 
@@ -402,19 +415,19 @@ require_once __DIR__ . '/includes/header.php';
     <div class="ui-card" style="padding: 1.5rem; margin: 0; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">&#128203;</div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.4rem;">
-                Facility Logs &amp; Moderation
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.4rem;">
+                <?= htmlspecialchars(t('srv_logs_title')) ?>
             </h3>
-            <p style="font-size: 0.88rem; color: #64748b; line-height: 1.5; margin: 0 0 1rem 0;">
-                Access the Maintenance Ticket Log to monitor repair progress, or inspect official administrator replies and review moderation records.
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 1rem 0;">
+                <?= htmlspecialchars(t('srv_logs_desc')) ?>
             </p>
         </div>
         <div style="display: flex; gap: 0.5rem;">
             <a href="modules/maintenance/index.php" class="btn btn-cancel" style="flex: 1; font-size: 0.85rem; text-align: center;">
-                Ticket Log
+                <?= htmlspecialchars(t('srv_ticket_log')) ?>
             </a>
             <a href="modules/feedback/index.php" class="btn btn-cancel" style="flex: 1; font-size: 0.85rem; text-align: center;">
-                All Reviews
+                <?= htmlspecialchars(t('srv_all_reviews')) ?>
             </a>
         </div>
     </div>

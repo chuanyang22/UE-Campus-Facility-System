@@ -15,23 +15,37 @@ $activeNav = 'feedback';
 $service     = new FeedbackService();
 $currentUser = AuthService::getCurrentUser();
 
+if (AuthService::isTechnician()) {
+    header('Location: ../maintenance/index.php');
+    exit;
+}
+
+$selectedBookingId = trim((string)($_GET['booking_id'] ?? $_POST['BookingID'] ?? ''));
+
+// Require selecting a completed session from the Completed Sessions dashboard first
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $selectedBookingId === '') {
+    header('Location: completed.php');
+    exit;
+}
+
 $availableBookings = $service->getCompletedBookingsWithoutFeedback(
     AuthService::isAdmin() ? null : $currentUser['UserID']
 );
 
 $errors = [];
 $formData = [
-    'BookingID'         => 'BK-2089',
-    'OverallRating'     => 4,
-    'CleanlinessRating' => 5,
-    'UserComments'      => 'Air-conditioning worked well and the room was spotless when we arrived. Projector HDMI cable needed a quick wiggle, otherwise great study space!',
+    'BookingID'         => $selectedBookingId,
+    'OverallRating'     => 4.0,
+    'CleanlinessRating' => 4.0,
+    'UserComments'      => '',
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $ratingVal = (float)($_POST['OverallRating'] ?? 4);
     $formData = [
         'BookingID'         => $_POST['BookingID'] ?? '',
-        'ConditionRating'   => (int)($_POST['OverallRating'] ?? 4),
-        'CleanlinessRating' => (int)($_POST['CleanlinessRating'] ?? 5),
+        'ConditionRating'   => $ratingVal,
+        'CleanlinessRating' => $ratingVal,
         'UserComments'      => $_POST['UserComments'] ?? '',
     ];
 
@@ -53,8 +67,8 @@ require_once __DIR__ . '/../../includes/header.php';
 <!-- Header Block -->
 <div class="page-header-row">
     <div>
-        <h1 class="page-title">Submit Session Feedback &amp; Star Rating</h1>
-        <p class="page-subtitle">Rate your completed facility booking experience to help improve campus spaces.</p>
+        <h1 class="page-title"><?= htmlspecialchars(t('sub_fb_title')) ?></h1>
+        <p class="page-subtitle"><?= htmlspecialchars(t('sub_fb_sub')) ?></p>
     </div>
 </div>
 
@@ -63,61 +77,39 @@ require_once __DIR__ . '/../../includes/header.php';
 
         <!-- Completed Booking Session Selector -->
         <div class="form-group">
-            <label for="BookingID">Select Completed Booking Session *</label>
+            <label for="BookingID">Completed Booking Session *</label>
             <select id="BookingID" name="BookingID" class="form-select <?= isset($errors['BookingID']) ? 'is-invalid' : '' ?>" required>
-                <option value="BK-2089" selected>#BK-2089 — Discussion Room B2 (18 Nov 2026, 10:00–12:00) [Checked-In]</option>
-                <?php foreach ($availableBookings as $b): ?>
-                    <?php if ($b['BookingID'] !== 'BK-2089'): ?>
-                        <option value="<?= htmlspecialchars($b['BookingID']) ?>">
-                            #<?= htmlspecialchars($b['BookingID']) ?> — <?= htmlspecialchars($b['FacilityName']) ?> (<?= htmlspecialchars($b['BookingDate']) ?>, <?= htmlspecialchars($b['StartTime']) ?>–<?= htmlspecialchars($b['EndTime']) ?>) [Checked-In]
+                <?php if (empty($availableBookings)): ?>
+                    <option value="">-- No pending completed sessions to review --</option>
+                <?php else: ?>
+                    <?php foreach ($availableBookings as $b): ?>
+                        <option value="<?= htmlspecialchars($b['BookingID']) ?>" <?= $formData['BookingID'] === $b['BookingID'] ? 'selected' : '' ?>>
+                            #<?= htmlspecialchars($b['BookingID']) ?> — <?= htmlspecialchars($b['FacilityName']) ?> (<?= htmlspecialchars(date('d M Y', strtotime($b['BookingDate']))) ?>, <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?>–<?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>)
                         </option>
-                    <?php endif; ?>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </select>
             <?php if (isset($errors['BookingID'])): ?>
                 <div class="invalid-feedback"><?= htmlspecialchars($errors['BookingID']) ?></div>
             <?php endif; ?>
         </div>
 
-        <!-- 2 Side-by-Side Rating Cards -->
-        <div class="form-grid-2col" style="margin-bottom: 1.25rem;">
-            
-            <!-- Overall Facility Star Rating (1-5) -->
-            <div class="rating-card-box">
-                <label style="font-size: 0.88rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.75rem;">
-                    Overall Facility Star Rating *
-                </label>
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div class="stars-interactive" id="overallStarsGroup">
-                        <span class="star-span active" data-val="1">&#9733;</span>
-                        <span class="star-span active" data-val="2">&#9733;</span>
-                        <span class="star-span active" data-val="3">&#9733;</span>
-                        <span class="star-span active" data-val="4">&#9733;</span>
-                        <span class="star-span" data-val="5">&#9733;</span>
-                    </div>
-                    <strong id="overallText" style="font-size: 0.95rem; color: #1e293b;">(4 / 5)</strong>
-                    <input type="hidden" name="OverallRating" id="OverallRatingInput" value="4">
+        <!-- Single Facility Star Rating Card (0.5 intervals) -->
+        <div class="rating-card-box" style="margin-bottom: 1.25rem;">
+            <label style="font-size: 0.88rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.75rem;">
+                Facility Star Rating *
+            </label>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div class="stars-interactive" id="overallStarsGroup">
+                    <span class="star-span active" data-val="1">&#9733;</span>
+                    <span class="star-span active" data-val="2">&#9733;</span>
+                    <span class="star-span active" data-val="3">&#9733;</span>
+                    <span class="star-span active" data-val="4">&#9733;</span>
+                    <span class="star-span" data-val="5">&#9733;</span>
                 </div>
+                <strong id="overallText" style="font-size: 0.95rem; color: #1e293b;">(4.0 / 5)</strong>
+                <input type="hidden" name="OverallRating" id="OverallRatingInput" value="4.0">
             </div>
-
-            <!-- Cleanliness & Condition Score (1-5) -->
-            <div class="rating-card-box">
-                <label style="font-size: 0.88rem; font-weight: 700; color: var(--text-heading); display: block; margin-bottom: 0.75rem;">
-                    Cleanliness &amp; Condition Score *
-                </label>
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div class="stars-interactive" id="cleanlinessStarsGroup">
-                        <span class="star-span active" data-val="1">&#9733;</span>
-                        <span class="star-span active" data-val="2">&#9733;</span>
-                        <span class="star-span active" data-val="3">&#9733;</span>
-                        <span class="star-span active" data-val="4">&#9733;</span>
-                        <span class="star-span active" data-val="5">&#9733;</span>
-                    </div>
-                    <strong id="cleanlinessText" style="font-size: 0.95rem; color: #1e293b;">(5 / 5)</strong>
-                    <input type="hidden" name="CleanlinessRating" id="CleanlinessRatingInput" value="5">
-                </div>
-            </div>
-
         </div>
 
         <!-- Review Comment with Dynamic Character Counter -->
@@ -139,7 +131,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
         <!-- Action Buttons -->
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
-            <a href="index.php" class="btn btn-cancel">Cancel</a>
+            <a href="completed.php" class="btn btn-cancel">Cancel</a>
             <button type="submit" class="btn btn-primary-blue">Submit Feedback</button>
         </div>
 
@@ -172,24 +164,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateCommentCounter();
     commentArea.addEventListener('input', updateCommentCounter);
+    function renderStars(stars, val) {
+        stars.forEach(function(s) {
+            const sVal = parseInt(s.getAttribute('data-val'), 10);
+            s.classList.remove('active', 'half');
+            if (val >= sVal) {
+                s.classList.add('active');
+            } else if (val >= sVal - 0.5) {
+                s.classList.add('half');
+            }
+        });
+    }
+
     function setupStarRating(groupEl, textEl, inputEl) {
         const stars = groupEl.querySelectorAll('.star-span');
-        
+        let currentVal = parseFloat(inputEl.value) || 4;
+        renderStars(stars, currentVal);
+
+        function getHoverVal(star, event) {
+            const rect = star.getBoundingClientRect();
+            const isLeftHalf = (event.clientX - rect.left) < (rect.width / 2);
+            const baseVal = parseInt(star.getAttribute('data-val'), 10);
+            return isLeftHalf ? Math.max(1, baseVal - 0.5) : baseVal;
+        }
+
         stars.forEach(function(star) {
-            star.addEventListener('click', function() {
-                const val = parseInt(this.getAttribute('data-val'), 10);
-                inputEl.value = val;
-                textEl.textContent = '(' + val + ' / 5)';
-                
-                stars.forEach(function(s) {
-                    const sVal = parseInt(s.getAttribute('data-val'), 10);
-                    if (sVal <= val) {
-                        s.classList.add('active');
-                    } else {
-                        s.classList.remove('active');
-                    }
-                });
+            star.addEventListener('mousemove', function(e) {
+                const previewVal = getHoverVal(this, e);
+                renderStars(stars, previewVal);
+                textEl.textContent = '(' + previewVal.toFixed(1) + ' / 5)';
             });
+
+            star.addEventListener('click', function(e) {
+                currentVal = getHoverVal(this, e);
+                inputEl.value = currentVal.toFixed(1);
+                textEl.textContent = '(' + currentVal.toFixed(1) + ' / 5)';
+                renderStars(stars, currentVal);
+            });
+        });
+
+        groupEl.addEventListener('mouseleave', function() {
+            renderStars(stars, currentVal);
+            textEl.textContent = '(' + currentVal.toFixed(1) + ' / 5)';
         });
     }
 
@@ -197,12 +213,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('overallStarsGroup'),
         document.getElementById('overallText'),
         document.getElementById('OverallRatingInput')
-    );
-
-    setupStarRating(
-        document.getElementById('cleanlinessStarsGroup'),
-        document.getElementById('cleanlinessText'),
-        document.getElementById('CleanlinessRatingInput')
     );
 });
 </script>

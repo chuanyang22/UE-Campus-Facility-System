@@ -12,6 +12,11 @@ require_once __DIR__ . '/../../services/MaintenanceService.php';
 $pageTitle = 'Maintenance Ticket Log & Work Order Dashboard';
 $activeNav = 'maintenance';
 
+if (!AuthService::isMaintenanceStaff()) {
+    header('Location: ../../index.php');
+    exit;
+}
+
 $service = new MaintenanceService();
 
 $filters = [
@@ -30,11 +35,11 @@ require_once __DIR__ . '/../../includes/header.php';
 <!-- Header with Action Button -->
 <div class="page-header-row">
     <div>
-        <h1 class="page-title">Maintenance Ticket Log &amp; Work Order Dashboard</h1>
-        <p class="page-subtitle">Monitor reported facility defects, filter by urgency or repair status, and track technician assignments.</p>
+        <h1 class="page-title"><?= htmlspecialchars(t('maint_title')) ?></h1>
+        <p class="page-subtitle"><?= htmlspecialchars(t('maint_sub')) ?></p>
     </div>
     <div>
-        <a href="report.php" class="btn btn-primary-blue">+ Log New Defect Ticket</a>
+        <a href="report.php" class="btn btn-primary-blue"><?= htmlspecialchars(t('btn_log_ticket')) ?></a>
     </div>
 </div>
 
@@ -56,19 +61,19 @@ require_once __DIR__ . '/../../includes/header.php';
 <!-- 4 Stat Metric Counters -->
 <div class="stat-row-4">
     <div class="stat-box">
-        <div class="stat-box-title">Total Active Tickets</div>
+        <div class="stat-box-title"><?= htmlspecialchars(t('kpi_active')) ?></div>
         <div class="stat-box-num num-black"><?= $stats['total_active'] ?></div>
     </div>
     <div class="stat-box">
-        <div class="stat-box-title">Critical / Locked Venues</div>
+        <div class="stat-box-title"><?= htmlspecialchars(t('kpi_locked')) ?></div>
         <div class="stat-box-num num-red"><?= $stats['locked_venues'] ?> Venues</div>
     </div>
     <div class="stat-box">
-        <div class="stat-box-title">In Progress Repairs</div>
+        <div class="stat-box-title"><?= htmlspecialchars(t('kpi_progress')) ?></div>
         <div class="stat-box-num num-amber"><?= $stats['in_progress'] ?></div>
     </div>
     <div class="stat-box">
-        <div class="stat-box-title">Resolved This Month</div>
+        <div class="stat-box-title"><?= htmlspecialchars(t('kpi_resolved')) ?></div>
         <div class="stat-box-num num-green"><?= $stats['resolved_month'] ?></div>
     </div>
 </div>
@@ -108,14 +113,14 @@ require_once __DIR__ . '/../../includes/header.php';
         <table class="ui-table">
             <thead>
                 <tr>
-                    <th>Ticket ID</th>
-                    <th>Facility</th>
-                    <th>Defect Category</th>
-                    <th>Urgency</th>
-                    <th>Assigned Technician</th>
-                    <th>Status</th>
-                    <th>Reported At</th>
-                    <th style="white-space: nowrap; width: 140px;">Action</th>
+                    <th><?= htmlspecialchars(t('col_ticket_id')) ?></th>
+                    <th><?= htmlspecialchars(t('col_facility')) ?></th>
+                    <th><?= htmlspecialchars(t('col_category')) ?></th>
+                    <th><?= htmlspecialchars(t('col_urgency')) ?></th>
+                    <th><?= htmlspecialchars(t('col_tech')) ?></th>
+                    <th><?= htmlspecialchars(t('col_status')) ?></th>
+                    <th><?= htmlspecialchars(t('col_reported')) ?></th>
+                    <th style="white-space: nowrap; width: 140px;"><?= htmlspecialchars(t('col_action')) ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -163,7 +168,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <td><?= htmlspecialchars(date('d M Y, H:i', strtotime($t['ScheduledDate']))) ?></td>
                             <td style="white-space: nowrap; width: 140px;">
                                 <a href="update.php?id=<?= urlencode($t['MaintenanceID']) ?>" class="btn btn-outline-blue" style="white-space: nowrap;">
-                                    <?= $t['MaintenanceStatus'] === 'Completed' ? 'View Details' : 'Manage / Update' ?>
+                                    <?= htmlspecialchars($t['MaintenanceStatus'] === 'Completed' ? t('btn_view_details') : t('btn_manage_update')) ?>
                                 </a>
                             </td>
                         </tr>

@@ -17,8 +17,14 @@ $service = new FeedbackService();
 $currentUser = AuthService::getCurrentUser();
 $isAdmin = AuthService::isAdmin();
 
+if (AuthService::isTechnician()) {
+    header('Location: ../maintenance/index.php');
+    exit;
+}
+
 $feedbackId = $_GET['id'] ?? '';
-$action = $_POST['action'] ?? '';
+$action     = $_POST['action'] ?? '';
+$returnTo   = trim((string)($_GET['return_to'] ?? $_POST['return_to'] ?? ''));
 
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -65,7 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $res = $service->updateReview($targetId, $_POST, false);
         if ($res['success']) {
             AuthService::setFlash('success', $res['message']);
-            header('Location: index.php?facility_id=FAC-04');
+            $redirectTarget = ($returnTo === 'completed') ? 'completed.php' : 'index.php?facility_id=FAC-04';
+            header('Location: ' . $redirectTarget);
             exit;
         } else {
             AuthService::setFlash('danger', $res['message'] ?? 'Validation error.');
@@ -99,14 +106,20 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <?php if ($isStudentEditingOwn && $singleReview): ?>
-    <!-- Student Edit Form (FR-6.3 Edit Review) -->
+    <?php
+        $backUrl = ($returnTo === 'completed')
+            ? 'completed.php'
+            : 'index.php?facility_id=' . urlencode($singleReview['FacilityID']);
+        $backLabel = ($returnTo === 'completed') ? t('btn_back_completed') : t('btn_back_reviews');
+    ?>
+    <!-- Student Edit Form -->
     <div class="page-header-row">
         <div>
-            <h1 class="page-title">Edit Session Feedback &amp; Star Rating</h1>
+            <h1 class="page-title"><?= htmlspecialchars(t('edit_fb_title')) ?></h1>
             <p class="page-subtitle">Update your rating and comment for booking #<?= htmlspecialchars($singleReview['BookingID']) ?>.</p>
         </div>
-        <a href="index.php?facility_id=<?= urlencode($singleReview['FacilityID']) ?>" class="btn btn-cancel">
-            &larr; Back to Reviews
+        <a href="<?= $backUrl ?>" class="btn btn-cancel">
+            <?= htmlspecialchars($backLabel) ?>
         </a>
     </div>
 
@@ -117,32 +130,20 @@ require_once __DIR__ . '/../../includes/header.php';
             <div style="font-size: 0.9rem; color: #475569;">Booking #<?= htmlspecialchars($singleReview['BookingID']) ?> &bull; Date: <?= htmlspecialchars($singleReview['BookingDate']) ?></div>
         </div>
 
-        <form method="POST" action="edit.php?id=<?= urlencode($singleReview['FeedbackID']) ?>">
+        <form method="POST" action="edit.php?id=<?= urlencode($singleReview['FeedbackID']) ?><?= $returnTo !== '' ? '&return_to=' . urlencode($returnTo) : '' ?>">
             <input type="hidden" name="action" value="update_student_review">
             <input type="hidden" name="FeedbackID" value="<?= htmlspecialchars($singleReview['FeedbackID']) ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
 
-            <div class="form-grid-2col">
-                <div class="form-group">
-                    <label>Overall Facility Star Rating (1-5) *</label>
-                    <select name="ConditionRating" class="form-select">
-                        <?php for ($i = 5; $i >= 1; $i--): ?>
-                            <option value="<?= $i ?>" <?= (int)$singleReview['ConditionRating'] === $i ? 'selected' : '' ?>>
-                                <?= $i ?> Stars (<?= str_repeat('★', $i) ?>)
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Cleanliness &amp; Condition Score (1-5) *</label>
-                    <select name="CleanlinessRating" class="form-select">
-                        <?php for ($i = 5; $i >= 1; $i--): ?>
-                            <option value="<?= $i ?>" <?= (int)$singleReview['CleanlinessRating'] === $i ? 'selected' : '' ?>>
-                                <?= $i ?> Stars (<?= str_repeat('★', $i) ?>)
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label>Facility Star Rating (1.0–5.0, 0.5 steps) *</label>
+                <select name="ConditionRating" class="form-select">
+                    <?php for ($val = 5.0; $val >= 1.0; $val -= 0.5): ?>
+                        <option value="<?= number_format($val, 1) ?>" <?= abs((float)$singleReview['OverallScore'] - $val) < 0.01 ? 'selected' : '' ?>>
+                            <?= number_format($val, 1) ?> Stars
+                        </option>
+                    <?php endfor; ?>
+                </select>
             </div>
 
             <div class="form-group">
@@ -151,8 +152,8 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
-                <a href="index.php?facility_id=<?= urlencode($singleReview['FacilityID']) ?>" class="btn btn-cancel">Cancel</a>
-                <button type="submit" class="btn btn-primary-blue">Save Updated Review</button>
+                <a href="<?= $backUrl ?>" class="btn btn-cancel"><?= htmlspecialchars(t('btn_cancel')) ?></a>
+                <button type="submit" class="btn btn-primary-blue"><?= htmlspecialchars(t('btn_save_review')) ?></button>
             </div>
         </form>
     </div>
@@ -185,8 +186,9 @@ require_once __DIR__ . '/../../includes/header.php';
         'UserID' => 'A240112',
         'BookingID' => 'BK-2089',
         'FacilityName' => 'Discussion Room B2',
-        'CleanlinessRating' => 5,
-        'ConditionRating' => 4,
+        'CleanlinessRating' => 4.5,
+        'ConditionRating' => 4.5,
+        'OverallScore' => 4.5,
         'UserComments' => 'Air-conditioning worked well and the room was spotless when we arrived. Projector HDMI cable needed a quick wiggle.',
         'AdminRemarks' => 'Thank you for the feedback! Our technician has replaced the loose HDMI connector in Room B2.'
     ];
@@ -197,7 +199,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 #<?= htmlspecialchars($disp504['FeedbackID']) ?> | User: <?= htmlspecialchars($disp504['UserID']) ?> | Facility: <?= htmlspecialchars($disp504['FacilityName']) ?> (#<?= htmlspecialchars($disp504['BookingID']) ?>)
             </div>
             <div style="color: #d97706; font-weight: 700; font-size: 0.95rem;">
-                Rating: <?= (int)$disp504['ConditionRating'] ?>/5 | Cleanliness: <?= (int)$disp504['CleanlinessRating'] ?>/5
+                Rating: <?= number_format((float)$disp504['OverallScore'], 1) ?>/5
             </div>
         </div>
 

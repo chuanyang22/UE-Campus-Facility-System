@@ -12,6 +12,12 @@ require_once __DIR__ . '/../../services/MaintenanceService.php';
 $ticketId = $_GET['id'] ?? '';
 $service  = new MaintenanceService();
 
+if (!AuthService::isAdmin()) {
+    AuthService::setFlash('danger', 'Unauthorized: Only Facility Administrators can delete maintenance tickets.');
+    header('Location: ../../index.php');
+    exit;
+}
+
 if (!empty($ticketId)) {
     $result = $service->deleteTicket($ticketId);
     if ($result['success']) {

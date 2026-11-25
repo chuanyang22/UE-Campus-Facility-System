@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($result['success'] && empty($errors)) {
         AuthService::setFlash('success', $result['message']);
-        header('Location: index.php');
+        header('Location: ' . (AuthService::isMaintenanceStaff() ? 'index.php' : '../../index.php'));
         exit;
     } else {
         $errors = array_merge($errors, $result['errors'] ?? []);
@@ -126,8 +126,8 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="page-header-row">
     <div>
-        <h1 class="page-title">Report Facility Defect / Damage</h1>
-        <p class="page-subtitle">Submit a maintenance ticket for broken equipment, electrical faults, or safety hazards.</p>
+        <h1 class="page-title"><?= htmlspecialchars(t('report_title')) ?></h1>
+        <p class="page-subtitle"><?= htmlspecialchars(t('report_sub')) ?></p>
     </div>
 </div>
 
@@ -241,7 +241,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
         <!-- Action Buttons -->
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
-            <a href="index.php" class="btn btn-cancel">Cancel</a>
+            <a href="<?= AuthService::isMaintenanceStaff() ? 'index.php' : '../../index.php' ?>" class="btn btn-cancel">Cancel</a>
             <button type="submit" class="btn btn-primary-blue">Submit Defect Ticket</button>
         </div>
     </form>

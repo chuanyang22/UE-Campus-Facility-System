@@ -12,8 +12,15 @@ require_once __DIR__ . '/../../services/MaintenanceService.php';
 $pageTitle = 'Update Repair Status, Assign Technician & Close/Delete Ticket';
 $activeNav = 'maintenance';
 
-$service  = new MaintenanceService();
-$ticketId = $_GET['id'] ?? 'MT-1042';
+if (!AuthService::isMaintenanceStaff()) {
+    header('Location: ../../index.php');
+    exit;
+}
+
+$service      = new MaintenanceService();
+$ticketId     = $_GET['id'] ?? 'MT-1042';
+$isAdmin      = AuthService::isAdmin();
+$isTechnician = AuthService::isTechnician();
 
 $ticket = $service->getTicketById($ticketId);
 if (!$ticket) {
@@ -91,6 +98,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     A user lodged an urgent safety report for <?= htmlspecialchars($ticket['FacilityName']) ?>. Review the issue and approve venue closure if safety risks warrant locking out student bookings.
                 </p>
             </div>
+            <?php if ($isAdmin): ?>
             <div style="display: flex; gap: 0.6rem; align-items: center;">
                 <form method="POST" action="update.php?id=<?= urlencode($ticket['MaintenanceID']) ?>" style="margin: 0;">
                     <input type="hidden" name="approve_lockdown" value="1">
@@ -105,6 +113,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     </button>
                 </form>
             </div>
+            <?php else: ?>
+            <span class="pill-badge pill-critical" style="font-size: 0.8rem; padding: 0.4rem 0.85rem;">
+                Awaiting Admin Lockdown Approval
+            </span>
+            <?php endif; ?>
         </div>
     </div>
 <?php endif; ?>
@@ -194,7 +207,8 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
         </div>
 
-        <!-- Close / Delete Duplicate or Voided Ticket -->
+        <!-- Close / Delete Duplicate or Voided Ticket (Admin Only) -->
+        <?php if ($isAdmin): ?>
         <div class="alert-banner-red" style="margin-top: 0;">
             <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.35rem;">
                 Close / Delete Duplicate or Voided Ticket
@@ -209,6 +223,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </button>
             </form>
         </div>
+        <?php endif; ?>
 
     </div>
 
