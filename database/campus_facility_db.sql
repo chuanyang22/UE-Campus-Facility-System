@@ -169,6 +169,7 @@ CREATE TABLE `user` (
   `PhoneNo` varchar(15) NOT NULL,
   `UserRole` enum('Student','Staff','Admin','Technician') NOT NULL,
   `AccountStatus` enum('Active','Suspended','Inactive') DEFAULT 'Active',
+  `BookingBanUntil` datetime DEFAULT NULL,
   `PasswordHash` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

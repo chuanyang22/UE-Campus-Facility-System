@@ -38,8 +38,8 @@ require_once __DIR__ . '/../../includes/header.php';
         <a href="index.php" class="btn btn-outline-blue" style="padding: 0.55rem 1rem; font-size: 0.88rem;">
             <?= htmlspecialchars(t('btn_view_all_reviews')) ?>
         </a>
-        <a href="../../index.php" class="btn btn-cancel" style="padding: 0.55rem 1rem; font-size: 0.88rem;">
-            <?= htmlspecialchars(t('btn_back_home')) ?>
+        <a href="../../index.php" onclick="if (window.history.length > 1) { window.history.back(); return false; }" class="btn btn-cancel" style="padding: 0.55rem 1rem; font-size: 0.88rem;">
+            <?= htmlspecialchars(t('btn_back')) ?>
         </a>
     </div>
 </div>
@@ -60,10 +60,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
                         <div>
-                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">
-                                <?= htmlspecialchars(t('lbl_booking')) ?> #<?= htmlspecialchars($b['BookingID']) ?>
-                            </div>
-                            <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-heading); margin-top: 0.15rem;">
+                            <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-heading);">
                                 <?= htmlspecialchars($b['FacilityName']) ?>
                             </div>
                         </div>

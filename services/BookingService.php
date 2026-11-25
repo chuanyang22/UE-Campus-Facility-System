@@ -154,6 +154,8 @@ class BookingService {
 
         $releasedCount = 0;
         $releasedIds = [];
+        $affectedUsers = [];
+        $penalizedUsers = [];
 
         if (!empty($expiredBookings)) {
             $updateStmt = $this->db->prepare(
@@ -166,18 +168,86 @@ class BookingService {
                 $updateStmt->execute([$exp['BookingID']]);
                 $releasedCount++;
                 $releasedIds[] = $exp['BookingID'];
+                $affectedUsers[$exp['UserID']] = true;
             }
+
+            foreach (array_keys($affectedUsers) as $uid) {
+                $pen = $this->evaluateNoShowPenalty((string)$uid);
+                if ($pen['penalized']) {
+                    $penalizedUsers[] = $uid;
+                }
+            }
+        }
+
+        $msg = $releasedCount > 0
+            ? "Auto-Release Engine executed: {$releasedCount} unclaimed booking(s) expired past the 15-minute grace period and marked as 'No-Show'."
+            : "Auto-Release Engine executed: No unclaimed bookings exceed the 15-minute grace period.";
+
+        if (!empty($penalizedUsers)) {
+            $msg .= ' 3-day booking penalty applied to: ' . implode(', ', $penalizedUsers) . ' (3+ missed check-ins).';
         }
 
         return [
             'success' => true,
             'released_count' => $releasedCount,
             'released_ids' => $releasedIds,
+            'penalized_users' => $penalizedUsers,
             'timestamp' => date('Y-m-d H:i:s'),
-            'message' => $releasedCount > 0 
-                ? "Auto-Release Engine executed: {$releasedCount} unclaimed booking(s) expired past the 15-minute grace period and marked as 'No-Show'."
-                : "Auto-Release Engine executed: No unclaimed bookings exceed the 15-minute grace period."
+            'message' => $msg,
         ];
+    }
+
+    /**
+     * Evaluate if a user has reached 3+ No-Show strikes and apply a 3-day booking ban.
+     */
+    public function evaluateNoShowPenalty(string $userId): array {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM booking WHERE UserID = ? AND BookingStatus = 'No-Show'");
+        $countStmt->execute([$userId]);
+        $noShowCount = (int)$countStmt->fetchColumn();
+
+        $userStmt = $this->db->prepare("SELECT BookingBanUntil FROM user WHERE UserID = ?");
+        $userStmt->execute([$userId]);
+        $banUntil = $userStmt->fetchColumn();
+
+        $isCurrentlyBanned = $banUntil && strtotime((string)$banUntil) > time();
+
+        if ($noShowCount >= 3 && !$isCurrentlyBanned) {
+            $newBanUntil = date('Y-m-d H:i:s', strtotime('+3 days'));
+            $upd = $this->db->prepare("UPDATE user SET BookingBanUntil = ? WHERE UserID = ?");
+            $upd->execute([$newBanUntil, $userId]);
+            return ['penalized' => true, 'no_show_count' => $noShowCount, 'ban_until' => $newBanUntil];
+        }
+
+        return ['penalized' => false, 'no_show_count' => $noShowCount, 'ban_until' => $banUntil ?: null];
+    }
+
+    /**
+     * Get current No-Show strike count and 3-day booking ban status for a user.
+     */
+    public function getUserPenaltyStatus(string $userId): array {
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM booking WHERE UserID = ? AND BookingStatus = 'No-Show'");
+        $countStmt->execute([$userId]);
+        $noShowCount = (int)$countStmt->fetchColumn();
+
+        $userStmt = $this->db->prepare("SELECT BookingBanUntil FROM user WHERE UserID = ?");
+        $userStmt->execute([$userId]);
+        $banUntil = $userStmt->fetchColumn();
+
+        $isBanned = $banUntil && strtotime((string)$banUntil) > time();
+
+        return [
+            'no_show_count' => $noShowCount,
+            'is_banned'     => (bool)$isBanned,
+            'ban_until'     => $isBanned ? (string)$banUntil : null,
+        ];
+    }
+
+    /**
+     * Clear a user's active booking penalty (for Admin/Demo reset).
+     */
+    public function clearUserPenalty(string $userId): bool {
+        $stmt = $this->db->prepare("UPDATE user SET BookingBanUntil = NULL WHERE UserID = ?");
+        return $stmt->execute([$userId]);
     }
 
     /**

@@ -84,7 +84,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: ?>
                     <?php foreach ($availableBookings as $b): ?>
                         <option value="<?= htmlspecialchars($b['BookingID']) ?>" <?= $formData['BookingID'] === $b['BookingID'] ? 'selected' : '' ?>>
-                            #<?= htmlspecialchars($b['BookingID']) ?> — <?= htmlspecialchars($b['FacilityName']) ?> (<?= htmlspecialchars(date('d M Y', strtotime($b['BookingDate']))) ?>, <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?>–<?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>)
+                            <?= htmlspecialchars($b['FacilityName']) ?> (<?= htmlspecialchars(date('d M Y', strtotime($b['BookingDate']))) ?>, <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?>–<?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>)
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>

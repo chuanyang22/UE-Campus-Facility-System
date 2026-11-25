@@ -67,7 +67,7 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
                     <li><a href="<?= $baseUrl ?>modules/feedback/index.php" class="nav-link <?= $activeNav === 'feedback' ? 'active' : '' ?>"><?= htmlspecialchars(t('nav_feedback')) ?></a></li>
                 <?php else: ?>
                     <li><a href="<?= $baseUrl ?>index.php" class="nav-link <?= $activeNav === 'facilities' ? 'active' : '' ?>"><?= htmlspecialchars(t('nav_facilities')) ?></a></li>
-                    <li><a href="<?= $baseUrl ?>index.php#my-bookings" class="nav-link <?= $activeNav === 'bookings' ? 'active' : '' ?>"><?= htmlspecialchars(t('nav_my_bookings')) ?></a></li>
+                    <li><a href="<?= $baseUrl ?>my_bookings.php" class="nav-link <?= $activeNav === 'bookings' ? 'active' : '' ?>"><?= htmlspecialchars(t('nav_my_bookings')) ?></a></li>
                     <li><a href="<?= $baseUrl ?>modules/feedback/index.php" class="nav-link <?= $activeNav === 'feedback' ? 'active' : '' ?>"><?= htmlspecialchars(t('nav_feedback')) ?></a></li>
                 <?php endif; ?>
                 

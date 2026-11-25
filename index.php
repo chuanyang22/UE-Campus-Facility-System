@@ -60,14 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php#no-show-engine');
         exit;
     }
+
+    if ($action === 'clear_penalty') {
+        $bookingService->clearUserPenalty($currentUser['UserID']);
+        AuthService::setFlash('info', 'Booking penalty cleared for testing.');
+        header('Location: index.php');
+        exit;
+    }
 }
 
 // Filters for Facility Directory
 $categoryFilter = $_GET['category'] ?? 'ALL';
 $searchQuery    = trim($_GET['search'] ?? '');
 
-$userBookings = $bookingService->getUserBookings($currentUser['UserID']);
-$facilities   = $bookingService->getAllFacilitiesWithStats($categoryFilter, $searchQuery);
+$userBookings  = $bookingService->getUserBookings($currentUser['UserID']);
+$facilities    = $bookingService->getAllFacilitiesWithStats($categoryFilter, $searchQuery);
+$penaltyStatus = $bookingService->getUserPenaltyStatus($currentUser['UserID']);
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -128,6 +136,29 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <!-- ======================================================== -->
+<!-- 3-STRIKE NO-SHOW 3-DAY PENALTY BANNER (IF ACTIVE)        -->
+<!-- ======================================================== -->
+<?php if ($penaltyStatus['is_banned']): ?>
+    <div style="background-color: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 10px; padding: 1.15rem 1.4rem; margin-bottom: 1.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="color: #991b1b; font-weight: 800; font-size: 1rem; margin-bottom: 0.25rem;">
+                &#9940; <?= htmlspecialchars(t('ban_title')) ?>
+            </div>
+            <div style="color: #7f1d1d; font-size: 0.9rem;">
+                <?= htmlspecialchars(t('ban_desc')) ?>
+                <strong><?= htmlspecialchars(date('d M Y, H:i', strtotime($penaltyStatus['ban_until']))) ?></strong>
+            </div>
+        </div>
+        <form method="POST" action="index.php" style="margin: 0;">
+            <input type="hidden" name="action" value="clear_penalty">
+            <button type="submit" class="btn btn-cancel" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;">
+                <?= htmlspecialchars(t('btn_clear_penalty')) ?>
+            </button>
+        </form>
+    </div>
+<?php endif; ?>
+
+<!-- ======================================================== -->
 <!-- SECTION 1: MY ACTIVE RESERVATIONS & DYNAMIC QR CHECK-IN  -->
 <!-- ======================================================== -->
 <div id="my-reservations" style="margin-bottom: 2.5rem;">
@@ -140,7 +171,10 @@ require_once __DIR__ . '/includes/header.php';
                 <?= htmlspecialchars(t('sec_reservations_sub')) ?>
             </p>
         </div>
-        <div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <span class="user-pill-chip" style="<?= $penaltyStatus['no_show_count'] >= 3 ? 'background:#fee2e2; color:#991b1b; border:1px solid #fecaca;' : '' ?>">
+                <?= htmlspecialchars(t('strikes_label')) ?> <?= (int)$penaltyStatus['no_show_count'] ?> / 3
+            </span>
             <span class="user-pill-chip">
                 <?= htmlspecialchars($currentUser['FullName'] ?? 'Student') ?> (<?= htmlspecialchars($currentUser['UserID']) ?>)
             </span>
@@ -177,10 +211,7 @@ require_once __DIR__ . '/includes/header.php';
                         <!-- Header with Status -->
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem;">
                             <div>
-                                <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                                    <?= htmlspecialchars(t('lbl_booking')) ?> #<?= htmlspecialchars($b['BookingID']) ?>
-                                </span>
-                                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin: 0.15rem 0 0 0;">
+                                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin: 0;">
                                     <?= htmlspecialchars($b['FacilityName']) ?>
                                 </h3>
                             </div>
@@ -353,7 +384,11 @@ require_once __DIR__ . '/includes/header.php';
 
                 <!-- Action Controls -->
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <?php if ($isAvailable): ?>
+                    <?php if ($penaltyStatus['is_banned']): ?>
+                        <button type="button" disabled class="btn btn-cancel" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.82rem; cursor: not-allowed; opacity: 0.7; color: #dc2626;">
+                            &#9940; <?= htmlspecialchars(t('ban_btn_disabled')) ?>
+                        </button>
+                    <?php elseif ($isAvailable): ?>
                         <button type="button" onclick="alert('Facility Booking Module: Ready for reservations! Initiating slot selection for <?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>.');" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
                             <?= htmlspecialchars(t('btn_quick_book')) ?>
                         </button>
@@ -411,7 +446,8 @@ require_once __DIR__ . '/includes/header.php';
         </a>
     </div>
 
-    <!-- Service 3: Maintenance & Moderation Hub -->
+    <?php if ($isAdmin): ?>
+    <!-- Service 3: Maintenance & Moderation Hub (Admin Only) -->
     <div class="ui-card" style="padding: 1.5rem; margin: 0; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">&#128203;</div>
@@ -431,6 +467,7 @@ require_once __DIR__ . '/includes/header.php';
             </a>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <!-- ======================================================== -->
@@ -530,7 +567,7 @@ function generateSvgQr(bookingId) {
 
 function openQrModal(bookingId, venueName, dateStr, timeStr, isAlreadyCheckedIn = false) {
     document.getElementById('modalVenueTitle').textContent = venueName;
-    document.getElementById('modalBookingSubtitle').textContent = 'Booking #' + bookingId + ' • ' + dateStr + ' • ' + timeStr;
+    document.getElementById('modalBookingSubtitle').textContent = dateStr + ' • ' + timeStr;
     document.getElementById('modalBookingIdInput').value = bookingId;
     document.getElementById('modalQrCodeBox').innerHTML = generateSvgQr(bookingId);
 

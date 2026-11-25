@@ -66,6 +66,11 @@ class I18n {
             'uf_desc' => 'Prevents venue hoarding and idle courts. If a student does not perform a QR check-in within 15 minutes of their reserved session start time, the auto-release engine cancels the reservation as No-Show and unlocks the time slot for other students.',
             'btn_seed_overdue' => '+ Seed Overdue Test Session',
             'btn_run_autorelease' => '⚡ Run Auto-Release Engine Now',
+            'ban_title' => 'Booking Suspension Active (3-Day Penalty)',
+            'ban_desc' => 'You have missed 3 or more bookings without checking in on time. New facility bookings are suspended until:',
+            'ban_btn_disabled' => 'Booking Suspended (3-Day Penalty)',
+            'strikes_label' => 'No-Show Strikes:',
+            'btn_clear_penalty' => 'Reset Penalty (Demo)',
 
             // Home Facilities Directory
             'sec_facilities' => 'Browse Campus Facilities',
@@ -149,6 +154,7 @@ class I18n {
             'comp_reviewed' => 'Reviewed',
             'btn_view_all_reviews' => 'View All Facility Reviews',
             'btn_back_home' => '← Back to Home',
+            'btn_back' => '← Back',
             'btn_back_completed' => '← Back to Completed Sessions',
             'btn_back_reviews' => '← Back to Reviews',
 
@@ -216,6 +222,11 @@ class I18n {
             'uf_desc' => '防止占用场地与资源闲置。若学生未在预订开始时间后的 15 分钟内完成扫码签到，系统将自动把该预订标记为“爽约”并释放该时段供其他学生预订。',
             'btn_seed_overdue' => '+ 生成超时测试时段',
             'btn_run_autorelease' => '⚡ 立即运行自动释放引擎',
+            'ban_title' => '预订权限已暂停（3天惩罚期）',
+            'ban_desc' => '您已累计 3 次及以上未按时扫码签到（爽约）。在此日期前您将无法预订任何新场地：',
+            'ban_btn_disabled' => '预订已暂停（3天惩罚期）',
+            'strikes_label' => '爽约次数：',
+            'btn_clear_penalty' => '重置惩罚（演示）',
 
             // Home Facilities Directory
             'sec_facilities' => '浏览校园设施',
@@ -299,6 +310,7 @@ class I18n {
             'comp_reviewed' => '已评价',
             'btn_view_all_reviews' => '查看所有设施评价',
             'btn_back_home' => '← 返回首页',
+            'btn_back' => '← 返回',
             'btn_back_completed' => '← 返回已完成时段',
             'btn_back_reviews' => '← 返回评价列表',
 
@@ -366,6 +378,11 @@ class I18n {
             'uf_desc' => 'Mengelakkan penahanan lokasi dan gelanggang terbiar. Jika pelajar tidak mendaftar masuk QR dalam tempoh 15 minit selepas waktu mula sesi, enjin akan membatalkan tempahan sebagai Tidak Hadir dan membuka semula slot untuk pelajar lain.',
             'btn_seed_overdue' => '+ Cipta Slot Ujian Lewat',
             'btn_run_autorelease' => '⚡ Jalankan Enjin Pelepasan Automatik',
+            'ban_title' => 'Tempahan Digantung (Penalti 3 Hari)',
+            'ban_desc' => 'Anda telah terlepas 3 atau lebih tempahan tanpa mendaftar masuk tepat pada masanya. Tempahan fasiliti baharu disekat sehingga:',
+            'ban_btn_disabled' => 'Tempahan Digantung (Penalti 3 Hari)',
+            'strikes_label' => 'Rekod Tidak Hadir:',
+            'btn_clear_penalty' => 'Tetap Semula Penalti (Demo)',
 
             // Home Facilities Directory
             'sec_facilities' => 'Layari Fasiliti Kampus',
@@ -449,6 +466,7 @@ class I18n {
             'comp_reviewed' => 'Telah Diulas',
             'btn_view_all_reviews' => 'Lihat Semua Ulasan Fasiliti',
             'btn_back_home' => '← Kembali ke Laman Utama',
+            'btn_back' => '← Kembali',
             'btn_back_completed' => '← Kembali ke Sesi Selesai',
             'btn_back_reviews' => '← Kembali ke Ulasan',
 

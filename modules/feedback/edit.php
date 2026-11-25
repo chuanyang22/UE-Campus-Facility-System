@@ -116,7 +116,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="page-header-row">
         <div>
             <h1 class="page-title"><?= htmlspecialchars(t('edit_fb_title')) ?></h1>
-            <p class="page-subtitle">Update your rating and comment for booking #<?= htmlspecialchars($singleReview['BookingID']) ?>.</p>
+            <p class="page-subtitle">Update your rating and comment for <?= htmlspecialchars($singleReview['FacilityName']) ?>.</p>
         </div>
         <a href="<?= $backUrl ?>" class="btn btn-cancel">
             <?= htmlspecialchars($backLabel) ?>
@@ -127,7 +127,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
             <div style="font-size: 0.85rem; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">Facility Session Details</div>
             <div style="font-size: 1.1rem; font-weight: 700; color: #0f172a;"><?= htmlspecialchars($singleReview['FacilityName']) ?> (<?= htmlspecialchars($singleReview['FacilityID']) ?>)</div>
-            <div style="font-size: 0.9rem; color: #475569;">Booking #<?= htmlspecialchars($singleReview['BookingID']) ?> &bull; Date: <?= htmlspecialchars($singleReview['BookingDate']) ?></div>
+            <div style="font-size: 0.9rem; color: #475569;">Date: <?= htmlspecialchars($singleReview['BookingDate']) ?></div>
         </div>
 
         <form method="POST" action="edit.php?id=<?= urlencode($singleReview['FeedbackID']) ?><?= $returnTo !== '' ? '&return_to=' . urlencode($returnTo) : '' ?>">
@@ -196,7 +196,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="ui-card" style="margin-bottom: 1.5rem; padding: 1.5rem 1.75rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
             <div style="font-size: 1.05rem; font-weight: 700; color: #0f172a;">
-                #<?= htmlspecialchars($disp504['FeedbackID']) ?> | User: <?= htmlspecialchars($disp504['UserID']) ?> | Facility: <?= htmlspecialchars($disp504['FacilityName']) ?> (#<?= htmlspecialchars($disp504['BookingID']) ?>)
+                #<?= htmlspecialchars($disp504['FeedbackID']) ?> | User: <?= htmlspecialchars($disp504['UserID']) ?> | Facility: <?= htmlspecialchars($disp504['FacilityName']) ?>
             </div>
             <div style="color: #d97706; font-weight: 700; font-size: 0.95rem;">
                 Rating: <?= number_format((float)$disp504['OverallScore'], 1) ?>/5
