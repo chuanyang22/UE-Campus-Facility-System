@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+date_default_timezone_set('Asia/Kuala_Lumpur');
+
 class Database {
     private static ?PDO $instance = null;
 

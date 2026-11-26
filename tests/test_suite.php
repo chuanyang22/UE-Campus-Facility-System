@@ -245,12 +245,18 @@ assertTest('UF Overdue booking auto-released as No-Show', in_array($overdueTestI
 $overdueRow = $bookingService->getBookingById($overdueTestId);
 assertTest('UF DB verification: Status is No-Show', $overdueRow['BookingStatus'] === 'No-Show');
 
-// 4. Test 3-Strike No-Show 3-Day Booking Penalty
+// 4. Test 3-Strike No-Show 3-Day Booking Penalty (preserve existing ban state)
+$prevBanStmt = $db->query("SELECT BookingBanUntil FROM user WHERE UserID = 'A240112'");
+$prevBan = $prevBanStmt->fetchColumn();
 $penaltyStatus = $bookingService->getUserPenaltyStatus('A240112');
 assertTest('UF 3-Strike No-Show triggers 3-day BookingBanUntil', $penaltyStatus['no_show_count'] >= 3 && $penaltyStatus['is_banned'] === true);
 
-// Cleanup
-$bookingService->clearUserPenalty('A240112');
+// Cleanup (restore original ban state)
+if ($prevBan) {
+    $db->prepare("UPDATE user SET BookingBanUntil = ? WHERE UserID = 'A240112'")->execute([$prevBan]);
+} else {
+    $bookingService->clearUserPenalty('A240112');
+}
 $db->exec("DELETE FROM booking WHERE BookingID IN ('{$qrTestId}', '{$overdueTestId}')");
 
 echo "\n========================================================\n";

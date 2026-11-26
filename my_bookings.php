@@ -53,17 +53,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$userBookings  = $bookingService->getUserBookings($currentUser['UserID']);
-$penaltyStatus = $bookingService->getUserPenaltyStatus($currentUser['UserID']);
+$activeBookings = $bookingService->getUserBookings($currentUser['UserID'], true);
+$allBookings    = $bookingService->getUserBookings($currentUser['UserID'], false);
+$activeIds      = array_flip(array_column($activeBookings, 'BookingID'));
+$pastBookings   = array_values(array_filter($allBookings, fn($b) => !isset($activeIds[$b['BookingID']])));
+$penaltyStatus  = $bookingService->getUserPenaltyStatus($currentUser['UserID']);
 
 require_once __DIR__ . '/includes/header.php';
+
+$renderBookingCard = function (array $b): void {
+    $status = $b['BookingStatus'];
+    $statusBadgeClass = match($status) {
+        'Confirmed'   => 'pill-high',
+        'Checked-In'  => 'pill-low',
+        'Completed'   => 'pill-completed',
+        'No-Show'     => 'pill-critical',
+        default       => 'pill-medium'
+    };
+    $statusLabel = match($status) {
+        'Confirmed'   => t('status_confirmed'),
+        'Checked-In'  => t('status_checked_in'),
+        'Completed'   => t('status_completed'),
+        'No-Show'     => t('status_no_show'),
+        default       => $status
+    };
+    $isToday = ($b['BookingDate'] === date('Y-m-d'));
+    ?>
+    <div class="ui-card" style="margin: 0; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid <?= $status === 'Checked-In' ? '#10b981' : ($status === 'Confirmed' ? '#2563eb' : '#94a3b8') ?>;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem;">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin: 0;">
+                        <?= htmlspecialchars($b['FacilityName']) ?>
+                    </h3>
+                </div>
+                <span class="pill-badge <?= $statusBadgeClass ?>" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">
+                    <?= htmlspecialchars($statusLabel) ?>
+                </span>
+            </div>
+
+            <div style="font-size: 0.88rem; color: var(--text-body); margin-bottom: 0.85rem; line-height: 1.5;">
+                <div>&#128205; <strong><?= htmlspecialchars(t('lbl_location')) ?></strong> <?= htmlspecialchars($b['LocationBlock']) ?></div>
+                <div>&#128197; <strong><?= htmlspecialchars(t('lbl_date')) ?></strong> <?= htmlspecialchars(date('D, d M Y', strtotime($b['BookingDate']))) ?> <?= $isToday ? '<strong style="color: #3b82f6;">' . htmlspecialchars(t('lbl_today')) . '</strong>' : '' ?></div>
+                <div>&#128337; <strong><?= htmlspecialchars(t('lbl_time')) ?></strong> <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> &ndash; <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?></div>
+                <div style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.25rem;"><?= htmlspecialchars(t('lbl_purpose')) ?> <?= htmlspecialchars($b['Purpose']) ?></div>
+            </div>
+
+            <?php if ($status === 'Checked-In' && !empty($b['CheckInTime'])): ?>
+                <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #065f46;">
+                    <strong>&#10003; <?= htmlspecialchars(t('msg_checked_in_at')) ?></strong> <?= htmlspecialchars(date('d M Y, H:i', strtotime($b['CheckInTime']))) ?>
+                </div>
+            <?php elseif ($status === 'No-Show'): ?>
+                <div style="background-color: #fef2f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #991b1b;">
+                    <strong>&#9888;</strong> <?= htmlspecialchars(t('msg_expired_noshow')) ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.5rem;">
+            <?php if ($status === 'Confirmed'): ?>
+                <button type="button"
+                        class="btn btn-primary-blue"
+                        onclick="openQrModal('<?= htmlspecialchars($b['BookingID']) ?>', '<?= htmlspecialchars($b['FacilityName'], ENT_QUOTES) ?>', '<?= htmlspecialchars($b['BookingDate']) ?>', '<?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> - <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>')"
+                        style="flex: 1; padding: 0.55rem; font-size: 0.85rem; font-weight: 700; display: inline-flex; justify-content: center; align-items: center; gap: 0.4rem;">
+                    &#128241; <?= htmlspecialchars(t('btn_qr_checkin')) ?>
+                </button>
+            <?php elseif ($status === 'Checked-In'): ?>
+                <button type="button"
+                        class="btn btn-cancel"
+                        onclick="openQrModal('<?= htmlspecialchars($b['BookingID']) ?>', '<?= htmlspecialchars($b['FacilityName'], ENT_QUOTES) ?>', '<?= htmlspecialchars($b['BookingDate']) ?>', '<?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> - <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>', true)"
+                        style="flex: 1; padding: 0.55rem; font-size: 0.85rem;">
+                    <?= htmlspecialchars(t('btn_view_qr')) ?>
+                </button>
+            <?php elseif ($status === 'Completed'): ?>
+                <a href="modules/feedback/submit.php?booking_id=<?= urlencode($b['BookingID']) ?>" class="btn btn-outline-blue" style="flex: 1; padding: 0.55rem; font-size: 0.85rem; text-align: center;">
+                    &#9997; <?= htmlspecialchars(t('btn_rate_review')) ?>
+                </a>
+            <?php endif; ?>
+
+            <a href="modules/maintenance/report.php?facility_id=<?= urlencode($b['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.55rem 0.75rem; font-size: 0.82rem;">
+                <?= htmlspecialchars(t('btn_report_short')) ?>
+            </a>
+        </div>
+    </div>
+    <?php
+};
 ?>
 
 <!-- Page Header -->
 <div class="page-header-row">
     <div>
-        <h1 class="page-title"><?= htmlspecialchars(t('sec_reservations')) ?></h1>
-        <p class="page-subtitle"><?= htmlspecialchars(t('sec_reservations_sub')) ?></p>
+        <h1 class="page-title"><?= htmlspecialchars(t('my_bookings_title')) ?></h1>
+        <p class="page-subtitle"><?= htmlspecialchars(t('my_bookings_sub')) ?></p>
     </div>
     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         <span class="user-pill-chip" style="<?= $penaltyStatus['no_show_count'] >= 3 ? 'background:#fee2e2; color:#991b1b; border:1px solid #fecaca;' : '' ?>">
@@ -88,6 +169,7 @@ require_once __DIR__ . '/includes/header.php';
             <div style="color: #7f1d1d; font-size: 0.9rem;">
                 <?= htmlspecialchars(t('ban_desc')) ?>
                 <strong><?= htmlspecialchars(date('d M Y, H:i', strtotime($penaltyStatus['ban_until']))) ?></strong>
+                &bull; <span class="penalty-countdown" data-ban-until="<?= htmlspecialchars(date('c', strtotime($penaltyStatus['ban_until']))) ?>" style="font-weight: 800; color: #b91c1c;"></span>
             </div>
         </div>
         <form method="POST" action="my_bookings.php" style="margin: 0;">
@@ -99,87 +181,59 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 <?php endif; ?>
 
-<!-- Reservations Grid -->
-<?php if (empty($userBookings)): ?>
-    <div class="ui-card" style="text-align: center; padding: 2.5rem; margin-bottom: 2rem;">
-        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;"><?= htmlspecialchars(t('no_bookings_msg')) ?></p>
-        <a href="index.php#facility-directory" class="btn btn-primary-blue"><?= htmlspecialchars(t('btn_book_now')) ?></a>
+<!-- Section 1: Active & Upcoming Reservations -->
+<div style="margin-bottom: 2.5rem;">
+    <div style="margin-bottom: 1rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-heading); margin: 0 0 0.2rem 0;">
+            <?= htmlspecialchars(t('sec_reservations')) ?>
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">
+            <?= htmlspecialchars(t('sec_reservations_sub')) ?>
+        </p>
     </div>
-<?php else: ?>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem;">
-        <?php foreach ($userBookings as $b):
-            $status = $b['BookingStatus'];
-            $statusBadgeClass = match($status) {
-                'Confirmed'   => 'pill-high',
-                'Checked-In'  => 'pill-low',
-                'Completed'   => 'pill-completed',
-                'No-Show'     => 'pill-critical',
-                default       => 'pill-medium'
-            };
-            $statusLabel = match($status) {
-                'Confirmed'   => t('status_confirmed'),
-                'Checked-In'  => t('status_checked_in'),
-                'Completed'   => t('status_completed'),
-                'No-Show'     => t('status_no_show'),
-                default       => $status
-            };
-            $isToday = ($b['BookingDate'] === date('Y-m-d'));
-        ?>
-            <div class="ui-card" style="margin: 0; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid <?= $status === 'Checked-In' ? '#10b981' : ($status === 'Confirmed' ? '#2563eb' : '#94a3b8') ?>;">
-                <div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem;">
-                        <div>
-                            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin: 0;">
-                                <?= htmlspecialchars($b['FacilityName']) ?>
-                            </h3>
-                        </div>
-                        <span class="pill-badge <?= $statusBadgeClass ?>" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">
-                            <?= htmlspecialchars($statusLabel) ?>
-                        </span>
-                    </div>
 
-                    <div style="font-size: 0.88rem; color: var(--text-body); margin-bottom: 0.85rem; line-height: 1.5;">
-                        <div>&#128205; <strong><?= htmlspecialchars(t('lbl_location')) ?></strong> <?= htmlspecialchars($b['LocationBlock']) ?></div>
-                        <div>&#128197; <strong><?= htmlspecialchars(t('lbl_date')) ?></strong> <?= htmlspecialchars(date('D, d M Y', strtotime($b['BookingDate']))) ?> <?= $isToday ? '<strong style="color: #3b82f6;">' . htmlspecialchars(t('lbl_today')) . '</strong>' : '' ?></div>
-                        <div>&#128337; <strong><?= htmlspecialchars(t('lbl_time')) ?></strong> <?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> &ndash; <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?></div>
-                        <div style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.25rem;"><?= htmlspecialchars(t('lbl_purpose')) ?> <?= htmlspecialchars($b['Purpose']) ?></div>
-                    </div>
+    <?php if (empty($activeBookings)): ?>
+        <div class="ui-card" style="text-align: center; padding: 2rem;">
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;"><?= htmlspecialchars(t('no_bookings_msg')) ?></p>
+            <a href="index.php#facility-directory" class="btn btn-primary-blue"><?= htmlspecialchars(t('btn_book_now')) ?></a>
+        </div>
+    <?php else: ?>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.25rem;">
+            <?php foreach ($activeBookings as $b) { $renderBookingCard($b); } ?>
+        </div>
+    <?php endif; ?>
+</div>
 
-                    <?php if ($status === 'Checked-In' && !empty($b['CheckInTime'])): ?>
-                        <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #065f46;">
-                            <strong>&#10003; <?= htmlspecialchars(t('msg_checked_in_at')) ?></strong> <?= htmlspecialchars(date('d M Y, H:i', strtotime($b['CheckInTime']))) ?>
-                        </div>
-                    <?php elseif ($status === 'No-Show'): ?>
-                        <div style="background-color: #fef2f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #991b1b;">
-                            <strong>&#9888;</strong> <?= htmlspecialchars(t('msg_expired_noshow')) ?>
-                        </div>
-                    <?php endif; ?>
+<!-- Section 2: Past Bookings (Grouped by Date) -->
+<?php if (!empty($pastBookings)): ?>
+    <?php
+        $pastByDate = [];
+        foreach ($pastBookings as $pb) {
+            $pastByDate[$pb['BookingDate']][] = $pb;
+        }
+    ?>
+    <div style="margin-bottom: 2.5rem;">
+        <div style="margin-bottom: 1.25rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-heading); margin: 0 0 0.2rem 0;">
+                <?= htmlspecialchars(t('sec_past_bookings')) ?>
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">
+                <?= htmlspecialchars(t('sec_past_bookings_sub')) ?>
+            </p>
+        </div>
+
+        <?php foreach ($pastByDate as $dateKey => $dateGroup): ?>
+            <div style="margin-bottom: 1.75rem;">
+                <!-- Date Divider Line -->
+                <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem;">
+                    <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-heading); white-space: nowrap;">
+                        &#128197; <?= htmlspecialchars(date('D, d M Y', strtotime((string)$dateKey))) ?>
+                    </span>
+                    <div style="flex: 1; height: 1px; background-color: var(--border-color);"></div>
                 </div>
 
-                <div style="display: flex; gap: 0.5rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.5rem;">
-                    <?php if ($status === 'Confirmed'): ?>
-                        <button type="button"
-                                class="btn btn-primary-blue"
-                                onclick="openQrModal('<?= htmlspecialchars($b['BookingID']) ?>', '<?= htmlspecialchars($b['FacilityName'], ENT_QUOTES) ?>', '<?= htmlspecialchars($b['BookingDate']) ?>', '<?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> - <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>')"
-                                style="flex: 1; padding: 0.55rem; font-size: 0.85rem; font-weight: 700; display: inline-flex; justify-content: center; align-items: center; gap: 0.4rem;">
-                            &#128241; <?= htmlspecialchars(t('btn_qr_checkin')) ?>
-                        </button>
-                    <?php elseif ($status === 'Checked-In'): ?>
-                        <button type="button"
-                                class="btn btn-cancel"
-                                onclick="openQrModal('<?= htmlspecialchars($b['BookingID']) ?>', '<?= htmlspecialchars($b['FacilityName'], ENT_QUOTES) ?>', '<?= htmlspecialchars($b['BookingDate']) ?>', '<?= htmlspecialchars(substr($b['StartTime'], 0, 5)) ?> - <?= htmlspecialchars(substr($b['EndTime'], 0, 5)) ?>', true)"
-                                style="flex: 1; padding: 0.55rem; font-size: 0.85rem;">
-                            <?= htmlspecialchars(t('btn_view_qr')) ?>
-                        </button>
-                    <?php elseif ($status === 'Completed'): ?>
-                        <a href="modules/feedback/submit.php?booking_id=<?= urlencode($b['BookingID']) ?>" class="btn btn-outline-blue" style="flex: 1; padding: 0.55rem; font-size: 0.85rem; text-align: center;">
-                            &#9997; <?= htmlspecialchars(t('btn_rate_review')) ?>
-                        </a>
-                    <?php endif; ?>
-
-                    <a href="modules/maintenance/report.php?facility_id=<?= urlencode($b['FacilityID']) ?>" class="btn btn-cancel" style="padding: 0.55rem 0.75rem; font-size: 0.82rem;">
-                        <?= htmlspecialchars(t('btn_report_short')) ?>
-                    </a>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.25rem;">
+                    <?php foreach ($dateGroup as $b) { $renderBookingCard($b); } ?>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -326,6 +380,26 @@ window.addEventListener('click', function(e) {
         closeQrModal();
     }
 });
+
+function updatePenaltyCountdowns() {
+    const els = document.querySelectorAll('.penalty-countdown');
+    const now = Date.now();
+    els.forEach(function(el) {
+        const target = new Date(el.getAttribute('data-ban-until')).getTime();
+        const diff = Math.max(0, Math.floor((target - now) / 1000));
+        if (diff <= 0) {
+            el.textContent = '0d 00h 00m 00s';
+            return;
+        }
+        const days = Math.floor(diff / 86400);
+        const hrs  = Math.floor((diff % 86400) / 3600);
+        const mins = Math.floor((diff % 3600) / 60);
+        const secs = diff % 60;
+        el.textContent = '⏱ ' + days + 'd ' + String(hrs).padStart(2, '0') + 'h ' + String(mins).padStart(2, '0') + 'm ' + String(secs).padStart(2, '0') + 's remaining';
+    });
+}
+updatePenaltyCountdowns();
+setInterval(updatePenaltyCountdowns, 1000);
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

@@ -794,6 +794,22 @@ body {
     color: #f1f5f9;
 }
 
+.form-control:disabled,
+.form-select:disabled {
+    background-color: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] .form-select:disabled {
+    background-color: #0f172a;
+    color: #94a3b8;
+    border-color: #334155;
+    opacity: 0.85;
+}
+
 [data-theme="dark"] .btn-cancel {
     background-color: #334155;
     color: #e2e8f0;
@@ -931,4 +947,83 @@ body {
     background: #1e293b !important;
     color: #f1f5f9 !important;
     border: 1px solid #334155;
+}
+
+/* =========================================================
+   COLLAPSIBLE LEFT SIDEBAR SHELL
+   ========================================================= */
+.app-shell {
+    display: flex;
+    flex: 1;
+    min-height: calc(100vh - 56px);
+}
+
+.app-sidebar {
+    width: 235px;
+    flex-shrink: 0;
+    background-color: var(--nav-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 1.25rem 0.85rem;
+    transition: width 0.2s ease, padding 0.2s ease, opacity 0.2s ease;
+    overflow: hidden;
+}
+
+.sidebar-collapsed-init .app-sidebar {
+    width: 0;
+    padding: 0;
+    border-right: none;
+    opacity: 0;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    color: var(--nav-text);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-link:hover {
+    background-color: #f1f5f9;
+    color: var(--primary-blue);
+}
+
+.sidebar-link.active {
+    background-color: #eff6ff;
+    color: var(--primary-blue);
+    font-weight: 700;
+}
+
+.app-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+[data-theme="dark"] .app-sidebar {
+    background-color: #0f172a;
+    border-right-color: #1e293b;
+}
+
+[data-theme="dark"] .sidebar-link:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-link.active {
+    background-color: rgba(59, 130, 246, 0.16);
+    color: #60a5fa;
 }

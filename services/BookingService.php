@@ -17,16 +17,23 @@ class BookingService {
     }
 
     /**
-     * Retrieve all bookings for a user with facility details
+     * Retrieve active & upcoming bookings for a user (or all bookings if $activeOnly = false)
      */
-    public function getUserBookings(string $userId): array {
-        $stmt = $this->db->prepare(
-            "SELECT b.*, f.FacilityName, f.LocationBlock, f.Category AS FacilityCategory, f.Capacity, f.AvailabilityStatus
-             FROM booking b
-             JOIN facility f ON b.FacilityID = f.FacilityID
-             WHERE b.UserID = ?
-             ORDER BY b.BookingDate DESC, b.StartTime DESC"
-        );
+    public function getUserBookings(string $userId, bool $activeOnly = true): array {
+        $sql = "SELECT b.*, f.FacilityName, f.LocationBlock, f.Category AS FacilityCategory, f.Capacity, f.AvailabilityStatus
+                FROM booking b
+                JOIN facility f ON b.FacilityID = f.FacilityID
+                WHERE b.UserID = ?";
+
+        if ($activeOnly) {
+            $sql .= " AND b.BookingStatus IN ('Confirmed', 'Checked-In')
+                      AND CONCAT(b.BookingDate, ' ', b.EndTime) > NOW()
+                      ORDER BY b.BookingDate ASC, b.StartTime ASC";
+        } else {
+            $sql .= " ORDER BY b.BookingDate DESC, b.StartTime DESC";
+        }
+
+        $stmt = $this->db->prepare($sql);
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
@@ -198,17 +205,16 @@ class BookingService {
     }
 
     /**
-     * Evaluate if a user has reached 3+ No-Show strikes and apply a 3-day booking ban.
+     * Evaluate if a user has reached 3+ No-Show strikes (since last reset) and apply a 3-day booking ban.
      */
     public function evaluateNoShowPenalty(string $userId): array {
-        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM booking WHERE UserID = ? AND BookingStatus = 'No-Show'");
-        $countStmt->execute([$userId]);
-        $noShowCount = (int)$countStmt->fetchColumn();
-
-        $userStmt = $this->db->prepare("SELECT BookingBanUntil FROM user WHERE UserID = ?");
+        $userStmt = $this->db->prepare("SELECT BookingBanUntil, StrikeResetAt FROM user WHERE UserID = ?");
         $userStmt->execute([$userId]);
-        $banUntil = $userStmt->fetchColumn();
+        $userRow = $userStmt->fetch();
+        $banUntil = $userRow['BookingBanUntil'] ?? null;
+        $resetAt  = $userRow['StrikeResetAt'] ?? null;
 
+        $noShowCount = $this->countActiveNoShowStrikes($userId, $resetAt);
         $isCurrentlyBanned = $banUntil && strtotime((string)$banUntil) > time();
 
         if ($noShowCount >= 3 && !$isCurrentlyBanned) {
@@ -225,14 +231,13 @@ class BookingService {
      * Get current No-Show strike count and 3-day booking ban status for a user.
      */
     public function getUserPenaltyStatus(string $userId): array {
-        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM booking WHERE UserID = ? AND BookingStatus = 'No-Show'");
-        $countStmt->execute([$userId]);
-        $noShowCount = (int)$countStmt->fetchColumn();
-
-        $userStmt = $this->db->prepare("SELECT BookingBanUntil FROM user WHERE UserID = ?");
+        $userStmt = $this->db->prepare("SELECT BookingBanUntil, StrikeResetAt FROM user WHERE UserID = ?");
         $userStmt->execute([$userId]);
-        $banUntil = $userStmt->fetchColumn();
+        $userRow = $userStmt->fetch();
+        $banUntil = $userRow['BookingBanUntil'] ?? null;
+        $resetAt  = $userRow['StrikeResetAt'] ?? null;
 
+        $noShowCount = $this->countActiveNoShowStrikes($userId, $resetAt);
         $isBanned = $banUntil && strtotime((string)$banUntil) > time();
 
         return [
@@ -243,10 +248,28 @@ class BookingService {
     }
 
     /**
-     * Clear a user's active booking penalty (for Admin/Demo reset).
+     * Count No-Show bookings occurring after StrikeResetAt (if set).
+     */
+    private function countActiveNoShowStrikes(string $userId, ?string $resetAt): int {
+        if ($resetAt) {
+            $stmt = $this->db->prepare(
+                "SELECT COUNT(*) FROM booking
+                 WHERE UserID = ? AND BookingStatus = 'No-Show'
+                   AND CONCAT(BookingDate, ' ', StartTime) > ?"
+            );
+            $stmt->execute([$userId, $resetAt]);
+        } else {
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM booking WHERE UserID = ? AND BookingStatus = 'No-Show'");
+            $stmt->execute([$userId]);
+        }
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Clear a user's active booking penalty and reset strike counter to 0 (for Admin/Demo reset).
      */
     public function clearUserPenalty(string $userId): bool {
-        $stmt = $this->db->prepare("UPDATE user SET BookingBanUntil = NULL WHERE UserID = ?");
+        $stmt = $this->db->prepare("UPDATE user SET BookingBanUntil = NULL, StrikeResetAt = NOW() WHERE UserID = ?");
         return $stmt->execute([$userId]);
     }
 
@@ -269,6 +292,63 @@ class BookingService {
         $stmt->execute([$demoId, $today, $startTime, $endTime]);
 
         return $demoId;
+    }
+
+    /**
+     * Create a Confirmed booking (also enforces 3-day No-Show penalty and facility availability)
+     */
+    public function createQuickBooking(
+        string $userId,
+        string $facilityId,
+        string $bookingDate,
+        string $startTime,
+        string $endTime,
+        string $purpose
+    ): array {
+        $penalty = $this->getUserPenaltyStatus($userId);
+        if ($penalty['is_banned']) {
+            return [
+                'success' => false,
+                'message' => 'Booking blocked: You are under a 3-day No-Show suspension until ' . date('d M Y, H:i', strtotime((string)$penalty['ban_until'])) . '.',
+            ];
+        }
+
+        $facStmt = $this->db->prepare("SELECT FacilityName, AvailabilityStatus FROM facility WHERE FacilityID = ?");
+        $facStmt->execute([$facilityId]);
+        $facility = $facStmt->fetch();
+        if (!$facility) {
+            return ['success' => false, 'message' => 'Selected facility not found.'];
+        }
+        if ($facility['AvailabilityStatus'] !== 'Available') {
+            return ['success' => false, 'message' => 'Facility is currently unavailable (' . $facility['AvailabilityStatus'] . ').'];
+        }
+
+        $purpose = trim($purpose) !== '' ? trim($purpose) : 'Campus Facility Session';
+
+        // Generate next BK-XXXX (max 10 chars)
+        $idStmt = $this->db->query("SELECT BookingID FROM booking WHERE BookingID REGEXP '^BK-[0-9]+$' ORDER BY CAST(SUBSTRING(BookingID, 4) AS UNSIGNED) DESC LIMIT 1");
+        $lastId = $idStmt->fetchColumn();
+        $nextNum = 3001;
+        if ($lastId && preg_match('/^BK-(\d+)$/', (string)$lastId, $m)) {
+            $nextNum = (int)$m[1] + 1;
+        }
+        $bookingId = 'BK-' . str_pad((string)$nextNum, 4, '0', STR_PAD_LEFT);
+
+        try {
+            $ins = $this->db->prepare(
+                "INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus, CheckInTime)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Confirmed', NULL)"
+            );
+            $ins->execute([$bookingId, $userId, $facilityId, $bookingDate, $startTime, $endTime, $purpose]);
+
+            return [
+                'success'    => true,
+                'booking_id' => $bookingId,
+                'message'    => "Booking confirmed for {$facility['FacilityName']}! You can now test QR Check-In below.",
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Database error creating booking: ' . $e->getMessage()];
+        }
     }
 
     /**

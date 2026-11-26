@@ -21,8 +21,15 @@ declare(strict_types=1);
         </ul>
     </div>
 </footer>
+    </div><!-- /.app-content -->
+</div><!-- /.app-shell -->
 
 <script>
+function toggleUeSidebar() {
+    var root = document.documentElement;
+    var isCollapsed = root.classList.toggle('sidebar-collapsed-init');
+    localStorage.setItem('ue_sidebar_collapsed', isCollapsed ? '1' : '0');
+}
 function updateThemeBtnIcon() {
     var btn = document.getElementById('themeToggleBtn');
     if (!btn) return;

@@ -10,7 +10,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../services/MaintenanceService.php';
 
 $pageTitle = 'Report Facility Defect / Damage';
-$activeNav = 'maintenance';
+$activeNav = AuthService::isMaintenanceStaff() ? 'maintenance' : 'report_defect';
 
 $service    = new MaintenanceService();
 $facilities = $service->getAllFacilities();
@@ -159,7 +159,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <label for="DefectCategory">Defect Category *</label>
             <select id="DefectCategory" name="DefectCategory" 
                     class="form-select <?= isset($errors['DefectCategory']) ? 'is-invalid' : '' ?>" 
-                    <?= empty($selectedVenueType) ? 'disabled style="background-color: #f8fafc; cursor: not-allowed;"' : '' ?>
+                    <?= empty($selectedVenueType) ? 'disabled' : '' ?>
                     required>
                 <?php if (empty($selectedVenueType)): ?>
                     <option value="">-- Please Select Affected Venue First --</option>
@@ -275,7 +275,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateCategoryOptions(venueType, preserveValue) {
         if (!venueType) {
             categorySelect.disabled = true;
-            categorySelect.style.backgroundColor = '#f8fafc';
             categorySelect.style.cursor = 'not-allowed';
             categorySelect.innerHTML = '<option value="">-- Please Select Affected Venue First --</option>';
             if (categoryHint) {
@@ -285,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         categorySelect.disabled = false;
-        categorySelect.style.backgroundColor = '#ffffff';
         categorySelect.style.cursor = 'pointer';
 
         const list = (venueType === 'sports') ? sportsCategories : academicCategories;

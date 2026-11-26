@@ -67,14 +67,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php');
         exit;
     }
+
+    if ($action === 'quick_book') {
+        $facId = trim((string)($_POST['facility_id'] ?? ''));
+        $bDate = trim((string)($_POST['booking_date'] ?? date('Y-m-d')));
+        $sTime = trim((string)($_POST['start_time'] ?? date('H:i'))) . ':00';
+        $eTime = trim((string)($_POST['end_time'] ?? date('H:i', strtotime('+2 hours')))) . ':00';
+        $purp  = trim((string)($_POST['purpose'] ?? 'Campus Facility Session'));
+
+        $res = $bookingService->createQuickBooking($currentUser['UserID'], $facId, $bDate, $sTime, $eTime, $purp);
+        AuthService::setFlash($res['success'] ? 'success' : 'danger', $res['message']);
+        header('Location: index.php#my-reservations');
+        exit;
+    }
 }
 
-// Filters for Facility Directory
-$categoryFilter = $_GET['category'] ?? 'ALL';
-$searchQuery    = trim($_GET['search'] ?? '');
-
+// Load all facilities for instant client-side filtering & live search
 $userBookings  = $bookingService->getUserBookings($currentUser['UserID']);
-$facilities    = $bookingService->getAllFacilitiesWithStats($categoryFilter, $searchQuery);
+$facilities    = $bookingService->getAllFacilitiesWithStats('ALL', '');
 $penaltyStatus = $bookingService->getUserPenaltyStatus($currentUser['UserID']);
 
 require_once __DIR__ . '/includes/header.php';
@@ -134,29 +144,6 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
-
-<!-- ======================================================== -->
-<!-- 3-STRIKE NO-SHOW 3-DAY PENALTY BANNER (IF ACTIVE)        -->
-<!-- ======================================================== -->
-<?php if ($penaltyStatus['is_banned']): ?>
-    <div style="background-color: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 10px; padding: 1.15rem 1.4rem; margin-bottom: 1.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <div style="color: #991b1b; font-weight: 800; font-size: 1rem; margin-bottom: 0.25rem;">
-                &#9940; <?= htmlspecialchars(t('ban_title')) ?>
-            </div>
-            <div style="color: #7f1d1d; font-size: 0.9rem;">
-                <?= htmlspecialchars(t('ban_desc')) ?>
-                <strong><?= htmlspecialchars(date('d M Y, H:i', strtotime($penaltyStatus['ban_until']))) ?></strong>
-            </div>
-        </div>
-        <form method="POST" action="index.php" style="margin: 0;">
-            <input type="hidden" name="action" value="clear_penalty">
-            <button type="submit" class="btn btn-cancel" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;">
-                <?= htmlspecialchars(t('btn_clear_penalty')) ?>
-            </button>
-        </form>
-    </div>
-<?php endif; ?>
 
 <!-- ======================================================== -->
 <!-- SECTION 1: MY ACTIVE RESERVATIONS & DYNAMIC QR CHECK-IN  -->
@@ -321,28 +308,58 @@ require_once __DIR__ . '/includes/header.php';
             </p>
         </div>
 
-        <!-- Filter & Search Controls -->
-        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-            <a href="index.php?category=ALL#facility-directory" class="btn <?= $categoryFilter === 'ALL' ? 'btn-primary-blue' : 'btn-cancel' ?>" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
-                <?= htmlspecialchars(t('filter_all')) ?>
-            </a>
-            <a href="index.php?category=Sports#facility-directory" class="btn <?= $categoryFilter === 'Sports' ? 'btn-primary-blue' : 'btn-cancel' ?>" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
-                &#127992; <?= htmlspecialchars(t('filter_sports')) ?>
-            </a>
-            <a href="index.php?category=Academic#facility-directory" class="btn <?= $categoryFilter === 'Academic' ? 'btn-primary-blue' : 'btn-cancel' ?>" style="font-size: 0.82rem; padding: 0.45rem 0.85rem;">
-                &#128218; <?= htmlspecialchars(t('filter_academic')) ?>
-            </a>
+        <!-- Single Category Toggle & Real-Time Search Controls -->
+        <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+            <input type="text"
+                   id="facilitySearchInput"
+                   class="form-control"
+                   placeholder="<?= htmlspecialchars(t('search_facility_ph')) ?>"
+                   style="width: 240px; padding: 0.45rem 0.85rem; font-size: 0.85rem;"
+                   autocomplete="off">
+
+            <button type="button"
+                    id="categoryToggleBtn"
+                    onclick="cycleFacilityCategory()"
+                    class="btn btn-outline-blue"
+                    style="font-size: 0.84rem; padding: 0.48rem 1rem; white-space: nowrap; min-width: 155px;">
+                &#127970; <?= htmlspecialchars(t('filter_all')) ?>
+            </button>
         </div>
     </div>
 
+    <?php if ($penaltyStatus['is_banned']): ?>
+        <div style="background-color: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <div style="color: #991b1b; font-weight: 800; font-size: 0.96rem; margin-bottom: 0.2rem;">
+                    &#9940; <?= htmlspecialchars(t('ban_title')) ?>
+                </div>
+                <div style="color: #7f1d1d; font-size: 0.88rem;">
+                    <?= htmlspecialchars(t('ban_desc')) ?>
+                    <strong><?= htmlspecialchars(date('d M Y, H:i', strtotime($penaltyStatus['ban_until']))) ?></strong>
+                    &bull; <span class="penalty-countdown" data-ban-until="<?= htmlspecialchars(date('c', strtotime($penaltyStatus['ban_until']))) ?>" style="font-weight: 800; color: #b91c1c;"></span>
+                </div>
+            </div>
+            <form method="POST" action="index.php#facility-directory" style="margin: 0;">
+                <input type="hidden" name="action" value="clear_penalty">
+                <button type="submit" class="btn btn-cancel" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;">
+                    <?= htmlspecialchars(t('btn_clear_penalty')) ?>
+                </button>
+            </form>
+        </div>
+    <?php endif; ?>
+
     <!-- Facility Cards Grid -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+    <div id="facilityCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
         <?php foreach ($facilities as $f): 
             $isAvailable = ($f['AvailabilityStatus'] === 'Available');
             $avgScore = $f['AvgScore'] ? rtrim(rtrim(number_format((float)$f['AvgScore'], 2, '.', ''), '0'), '.') : 'New';
             $reviewsCount = (int)$f['ReviewCount'];
         ?>
-            <div class="ui-card" style="margin: 0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; border-radius: 10px;">
+            <div class="ui-card facility-card"
+                 data-category="<?= htmlspecialchars($f['Category']) ?>"
+                 data-name="<?= htmlspecialchars(strtolower($f['FacilityName'])) ?>"
+                 data-block="<?= htmlspecialchars(strtolower($f['LocationBlock'])) ?>"
+                 style="margin: 0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; border-radius: 10px;">
                 <div>
                     <!-- Top Category & Status Badge -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -389,7 +406,7 @@ require_once __DIR__ . '/includes/header.php';
                             &#9940; <?= htmlspecialchars(t('ban_btn_disabled')) ?>
                         </button>
                     <?php elseif ($isAvailable): ?>
-                        <button type="button" onclick="alert('Facility Booking Module: Ready for reservations! Initiating slot selection for <?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>.');" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
+                        <button type="button" onclick="openQuickBookModal('<?= htmlspecialchars($f['FacilityID'], ENT_QUOTES) ?>', '<?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>')" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
                             <?= htmlspecialchars(t('btn_quick_book')) ?>
                         </button>
                     <?php else: ?>
@@ -407,6 +424,9 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             </div>
         <?php endforeach; ?>
+    </div>
+    <div id="noFacilitiesMatchMsg" class="ui-card" style="display: none; text-align: center; padding: 2rem; color: var(--text-muted); margin-top: 1rem;">
+        No facilities match your search or category filter.
     </div>
 </div>
 
@@ -468,6 +488,49 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </div>
     <?php endif; ?>
+</div>
+
+<!-- ======================================================== -->
+<!-- QUICK BOOK MODAL (FOR TESTING QR CHECK-IN)               -->
+<!-- ======================================================== -->
+<div id="quickBookModalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: var(--card-bg); color: var(--text-heading); border: 1px solid var(--border-color); border-radius: 16px; max-width: 460px; width: 100%; padding: 1.75rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); position: relative;">
+        <button type="button" onclick="closeQuickBookModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; line-height: 1;">&times;</button>
+
+        <h3 id="qbFacilityTitle" style="font-size: 1.2rem; font-weight: 800; color: var(--text-heading); margin: 0 0 0.25rem 0;">Book Facility</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem 0;">Reserve a slot to test dynamic QR Check-In.</p>
+
+        <form method="POST" action="index.php">
+            <input type="hidden" name="action" value="quick_book">
+            <input type="hidden" name="facility_id" id="qbFacilityIdInput" value="">
+
+            <div class="form-group">
+                <label for="qbDate"><?= htmlspecialchars(t('lbl_date')) ?></label>
+                <input type="date" id="qbDate" name="booking_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+            </div>
+
+            <div class="form-grid-2col">
+                <div class="form-group">
+                    <label for="qbStart">Start Time</label>
+                    <input type="time" id="qbStart" name="start_time" class="form-control" value="<?= date('H:i') ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="qbEnd">End Time</label>
+                    <input type="time" id="qbEnd" name="end_time" class="form-control" value="<?= date('H:i', strtotime('+2 hours')) ?>" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="qbPurpose">Purpose</label>
+                <input type="text" id="qbPurpose" name="purpose" class="form-control" value="Study / Practice Session" maxlength="200" required>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+                <button type="button" onclick="closeQuickBookModal()" class="btn btn-cancel" style="flex: 1;"><?= htmlspecialchars(t('btn_cancel')) ?></button>
+                <button type="submit" class="btn btn-primary-blue" style="flex: 2; font-weight: 700;">Confirm Booking</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- ======================================================== -->
@@ -538,7 +601,7 @@ function generateSvgQr(bookingId) {
         const y = startY * cellSize;
         const w = 7 * cellSize;
         svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + w + '" fill="#0f172a" rx="4"/>';
-        svg += '<rect x="' + (x + cellSize) + '" y="' + (y + cellSize) . '" width="' + (5 * cellSize) + '" height="' + (5 * cellSize) + '" fill="#ffffff" rx="2"/>';
+        svg += '<rect x="' + (x + cellSize) + '" y="' + (y + cellSize) + '" width="' + (5 * cellSize) + '" height="' + (5 * cellSize) + '" fill="#ffffff" rx="2"/>';
         svg += '<rect x="' + (x + 2 * cellSize) + '" y="' + (y + 2 * cellSize) + '" width="' + (3 * cellSize) + '" height="' + (3 * cellSize) + '" fill="#0f172a" rx="2"/>';
     }
 
@@ -590,13 +653,109 @@ function closeQrModal() {
     document.getElementById('qrModalOverlay').style.display = 'none';
 }
 
+function openQuickBookModal(facilityId, facilityName) {
+    document.getElementById('qbFacilityIdInput').value = facilityId;
+    document.getElementById('qbFacilityTitle').textContent = facilityName;
+    document.getElementById('quickBookModalOverlay').style.display = 'flex';
+}
+
+function closeQuickBookModal() {
+    document.getElementById('quickBookModalOverlay').style.display = 'none';
+}
+
 // Close modal on click outside
 window.addEventListener('click', function(e) {
     const modal = document.getElementById('qrModalOverlay');
+    const qbModal = document.getElementById('quickBookModalOverlay');
     if (e.target === modal) {
         closeQrModal();
     }
+    if (e.target === qbModal) {
+        closeQuickBookModal();
+    }
 });
+
+// Live 3-day penalty countdown timer
+function updatePenaltyCountdowns() {
+    const els = document.querySelectorAll('.penalty-countdown');
+    const now = Date.now();
+    els.forEach(function(el) {
+        const target = new Date(el.getAttribute('data-ban-until')).getTime();
+        const diff = Math.max(0, Math.floor((target - now) / 1000));
+        if (diff <= 0) {
+            el.textContent = '0d 00h 00m 00s';
+            return;
+        }
+        const days = Math.floor(diff / 86400);
+        const hrs  = Math.floor((diff % 86400) / 3600);
+        const mins = Math.floor((diff % 3600) / 60);
+        const secs = diff % 60;
+        el.textContent = '⏱ ' + days + 'd ' + String(hrs).padStart(2, '0') + 'h ' + String(mins).padStart(2, '0') + 'm ' + String(secs).padStart(2, '0') + 's remaining';
+    });
+}
+updatePenaltyCountdowns();
+setInterval(updatePenaltyCountdowns, 1000);
+
+// Real-time case-insensitive facility search & single category toggle (All -> Sports -> Academic)
+const facilityCategories = [
+    { key: 'ALL', label: '🏢 <?= addslashes(t('filter_all')) ?>', cls: 'btn btn-outline-blue' },
+    { key: 'Sports', label: '🏸 <?= addslashes(t('filter_sports')) ?>', cls: 'btn btn-primary-blue' },
+    { key: 'Academic', label: '📚 <?= addslashes(t('filter_academic')) ?>', cls: 'btn btn-primary-blue' }
+];
+let currentCategoryIdx = 0;
+
+function cycleFacilityCategory() {
+    currentCategoryIdx = (currentCategoryIdx + 1) % facilityCategories.length;
+    const cat = facilityCategories[currentCategoryIdx];
+    const btn = document.getElementById('categoryToggleBtn');
+    if (btn) {
+        btn.textContent = cat.label;
+        btn.className = cat.cls;
+    }
+    filterFacilitiesLive();
+}
+
+function filterFacilitiesLive() {
+    const searchInput = document.getElementById('facilitySearchInput');
+    const q = (searchInput ? searchInput.value : '').trim().toLowerCase();
+    const activeCat = facilityCategories[currentCategoryIdx].key;
+    const cards = document.querySelectorAll('.facility-card');
+    let visibleCount = 0;
+
+    cards.forEach(function(card) {
+        const cardCat = card.getAttribute('data-category') || '';
+        const name = card.getAttribute('data-name') || '';
+        const block = card.getAttribute('data-block') || '';
+
+        const catMatch = (activeCat === 'ALL' || cardCat === activeCat);
+        let searchMatch = true;
+        if (q !== '') {
+            const nameWords = name.split(/\s+/);
+            const blockWords = block.split(/\s+/);
+            searchMatch = name.startsWith(q)
+                || block.startsWith(q)
+                || nameWords.some(function(w) { return w.startsWith(q); })
+                || blockWords.some(function(w) { return w.startsWith(q); });
+        }
+
+        if (catMatch && searchMatch) {
+            card.style.display = 'flex';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    const emptyMsg = document.getElementById('noFacilitiesMatchMsg');
+    if (emptyMsg) {
+        emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+}
+
+const searchEl = document.getElementById('facilitySearchInput');
+if (searchEl) {
+    searchEl.addEventListener('input', filterFacilitiesLive);
+}
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

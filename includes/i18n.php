@@ -24,6 +24,8 @@ class I18n {
             'nav_equipment' => 'Equipment',
             'nav_maintenance' => 'Maintenance',
             'nav_feedback' => 'Feedback',
+            'nav_report_defect' => 'Report Defect',
+            'sidebar_toggle' => 'Show / Hide Menu',
             'theme_toggle' => 'Toggle Light/Dark Theme',
             'lang_label' => 'Language',
 
@@ -41,6 +43,10 @@ class I18n {
             // Home Reservations & QR
             'sec_reservations' => 'My Active & Upcoming Reservations',
             'sec_reservations_sub' => 'Check in at the venue entrance using your dynamic QR code, or rate completed sessions.',
+            'my_bookings_title' => 'My Bookings',
+            'my_bookings_sub' => 'View all your active, upcoming, and past facility reservations.',
+            'sec_past_bookings' => 'Past Bookings',
+            'sec_past_bookings_sub' => 'Completed, expired no-show, or cancelled reservations.',
             'lbl_booking' => 'Booking',
             'lbl_location' => 'Location:',
             'lbl_date' => 'Date:',
@@ -180,6 +186,8 @@ class I18n {
             'nav_equipment' => '器材管理',
             'nav_maintenance' => '维修管理',
             'nav_feedback' => '评价反馈',
+            'nav_report_defect' => '设施报修',
+            'sidebar_toggle' => '显示 / 隐藏菜单',
             'theme_toggle' => '切换浅色/深色主题',
             'lang_label' => '语言',
 
@@ -197,6 +205,10 @@ class I18n {
             // Home Reservations & QR
             'sec_reservations' => '我的当前与即将开始的预订',
             'sec_reservations_sub' => '在场地入口使用动态二维码签到，或对已完成的场次进行评分。',
+            'my_bookings_title' => '我的预订记录',
+            'my_bookings_sub' => '查看您当前、即将开始以及历史的所有场地预订。',
+            'sec_past_bookings' => '历史预订',
+            'sec_past_bookings_sub' => '已完成、超时爽约或已取消的预订记录。',
             'lbl_booking' => '预订编号',
             'lbl_location' => '地点：',
             'lbl_date' => '日期：',
@@ -336,6 +348,8 @@ class I18n {
             'nav_equipment' => 'Peralatan',
             'nav_maintenance' => 'Penyelenggaraan',
             'nav_feedback' => 'Maklum Balas',
+            'nav_report_defect' => 'Lapor Kerosakan',
+            'sidebar_toggle' => 'Tunjuk / Sembunyi Menu',
             'theme_toggle' => 'Tukar Tema Cerah/Gelap',
             'lang_label' => 'Bahasa',
 
@@ -353,6 +367,10 @@ class I18n {
             // Home Reservations & QR
             'sec_reservations' => 'Tempahan Aktif & Akan Datang Saya',
             'sec_reservations_sub' => 'Daftar masuk di pintu masuk lokasi menggunakan kod QR dinamik, atau nilai sesi yang telah selesai.',
+            'my_bookings_title' => 'Tempahan Saya',
+            'my_bookings_sub' => 'Lihat semua tempahan fasiliti aktif, akan datang dan terdahulu.',
+            'sec_past_bookings' => 'Tempahan Terdahulu',
+            'sec_past_bookings_sub' => 'Tempahan yang telah selesai, tidak hadir, atau dibatalkan.',
             'lbl_booking' => 'Tempahan',
             'lbl_location' => 'Lokasi:',
             'lbl_date' => 'Tarikh:',
