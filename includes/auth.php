@@ -13,7 +13,17 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/db.php';
 
 class AuthService {
+    public static function ensureDemoUsers(): void {
+        try {
+            $db = getDB();
+            $db->exec("INSERT IGNORE INTO user (UserID, FullName, CampusEmail, PhoneNo, UserRole, AccountStatus, PasswordHash) VALUES
+                ('A240112', 'Shivendra (Student)', 'a240112@student.campus.edu', '012-3456789', 'Student', 'Active', '\$2y\$10\$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
+                ('S0012', 'Facility Administrator', 'admin0012@campus.edu', '019-9988770', 'Admin', 'Active', '\$2y\$10\$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm')");
+        } catch (Throwable $e) {}
+    }
+
     public static function getDemoUsers(): array {
+        self::ensureDemoUsers();
         $db = getDB();
         $stmt = $db->query('SELECT UserID, FullName, CampusEmail, UserRole, AccountStatus FROM user WHERE UserID IN ("A240112", "T0001", "S0012", "U1001", "U1004") ORDER BY UserRole DESC, UserID ASC');
         return $stmt->fetchAll();

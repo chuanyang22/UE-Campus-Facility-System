@@ -111,8 +111,17 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
                 <a href="<?= $baseUrl ?>modules/maintenance/index.php" class="sidebar-link <?= $activeNav === 'maintenance' ? 'active' : '' ?>">
                     <span>&#128295;</span> <?= htmlspecialchars(t('nav_maintenance')) ?>
                 </a>
+                <a href="<?= $baseUrl ?>modules/equipment/index.php" class="sidebar-link <?= $activeNav === 'equipment' ? 'active' : '' ?>">
+                    <span>&#127890;</span> <?= htmlspecialchars(t('nav_equipment')) ?>
+                </a>
             <?php elseif ($isAdmin): ?>
-                <a href="<?= $baseUrl ?>index.php#equipment" class="sidebar-link <?= $activeNav === 'equipment' ? 'active' : '' ?>">
+                <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
+                    <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/booking/index.php?view_all=1" class="sidebar-link <?= $activeNav === 'bookings' ? 'active' : '' ?>">
+                    <span>&#128197;</span> <?= htmlspecialchars(t('nav_my_bookings')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/equipment/index.php" class="sidebar-link <?= $activeNav === 'equipment' ? 'active' : '' ?>">
                     <span>&#127890;</span> <?= htmlspecialchars(t('nav_equipment')) ?>
                 </a>
                 <a href="<?= $baseUrl ?>modules/maintenance/index.php" class="sidebar-link <?= $activeNav === 'maintenance' ? 'active' : '' ?>">
@@ -125,8 +134,11 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
                 <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
                     <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
                 </a>
-                <a href="<?= $baseUrl ?>my_bookings.php" class="sidebar-link <?= $activeNav === 'bookings' ? 'active' : '' ?>">
+                <a href="<?= $baseUrl ?>modules/booking/index.php" class="sidebar-link <?= $activeNav === 'bookings' ? 'active' : '' ?>">
                     <span>&#128197;</span> <?= htmlspecialchars(t('nav_my_bookings')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/equipment/index.php" class="sidebar-link <?= $activeNav === 'equipment' ? 'active' : '' ?>">
+                    <span>&#127890;</span> <?= htmlspecialchars(t('nav_equipment')) ?>
                 </a>
                 <a href="<?= $baseUrl ?>modules/feedback/index.php" class="sidebar-link <?= $activeNav === 'feedback' ? 'active' : '' ?>">
                     <span>&#11088;</span> <?= htmlspecialchars(t('nav_feedback')) ?>

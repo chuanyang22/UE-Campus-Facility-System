@@ -38,7 +38,10 @@ CREATE TABLE `booking` (
   `StartTime` time NOT NULL,
   `EndTime` time NOT NULL,
   `Purpose` varchar(200) NOT NULL,
-  `BookingStatus` enum('Confirmed','Checked-In','Cancelled','No-Show','Completed') DEFAULT 'Confirmed'
+  `BookingStatus` enum('Confirmed','Checked-In','Cancelled','No-Show','Completed') DEFAULT 'Confirmed',
+  `PartySize` int(11) DEFAULT 1,
+  `CheckInTime` datetime DEFAULT NULL,
+  `CheckOutTime` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -141,10 +144,13 @@ CREATE TABLE `maintenance` (
   `ReportedByUserID` varchar(10) NOT NULL,
   `IssueTitle` varchar(100) NOT NULL,
   `IssueDescription` text NOT NULL,
+  `DefectCategory` varchar(100) DEFAULT 'General',
   `UrgencyLevel` enum('Low','Medium','High','Critical') NOT NULL,
+  `AssignedTechnician` varchar(100) DEFAULT 'Encik Hafiz Rahman',
   `ScheduledDate` date NOT NULL,
   `ResolutionDate` date DEFAULT NULL,
-  `MaintenanceStatus` enum('Pending','In-Progress','Completed','Archived') DEFAULT 'Pending'
+  `MaintenanceStatus` enum('Pending','In-Progress','Completed','Archived') DEFAULT 'Pending',
+  `LockdownStatus` varchar(50) DEFAULT 'None'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -179,6 +185,8 @@ CREATE TABLE `user` (
 --
 
 INSERT INTO `user` (`UserID`, `FullName`, `CampusEmail`, `PhoneNo`, `UserRole`, `AccountStatus`, `PasswordHash`) VALUES
+('A240112', 'Shivendra (Student)', 'a240112@student.campus.edu', '012-3456789', 'Student', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
+('S0012', 'Facility Administrator', 'admin0012@campus.edu', '019-9988770', 'Admin', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
 ('U1001', 'Alex Tan', 'alextan@student.campus.edu', '012-3456789', 'Student', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
 ('U1002', 'Sarah Lee', 'sarahlee@student.campus.edu', '013-8899776', 'Student', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),
 ('U1003', 'Dr. Farhan Azman', 'farhan@staff.campus.edu', '017-4455661', 'Staff', 'Active', '$2y$10$e8wFwO4q49tX6iV0v3cQyeC.kR11GfZo23YhZz6Lqm8.W4E2Z9jKm'),

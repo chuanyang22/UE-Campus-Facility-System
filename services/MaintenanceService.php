@@ -15,6 +15,20 @@ class MaintenanceService {
 
     public function __construct() {
         $this->db = getDB();
+        $this->ensureSchemaReady();
+    }
+
+    /**
+     * Ensure database schema includes defect category, technician and lockdown columns
+     */
+    private function ensureSchemaReady(): void {
+        try {
+            $this->db->exec("ALTER TABLE maintenance ADD COLUMN IF NOT EXISTS DefectCategory VARCHAR(100) DEFAULT 'General'");
+            $this->db->exec("ALTER TABLE maintenance ADD COLUMN IF NOT EXISTS AssignedTechnician VARCHAR(100) DEFAULT 'Encik Hafiz Rahman'");
+            $this->db->exec("ALTER TABLE maintenance ADD COLUMN IF NOT EXISTS LockdownStatus VARCHAR(50) DEFAULT 'None'");
+        } catch (Throwable $e) {
+            // Ignore if restricted or already exists
+        }
     }
 
     /**

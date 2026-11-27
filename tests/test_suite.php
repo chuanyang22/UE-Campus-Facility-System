@@ -10,9 +10,11 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../services/MaintenanceService.php';
 require_once __DIR__ . '/../services/FeedbackService.php';
 require_once __DIR__ . '/../services/BookingService.php';
+require_once __DIR__ . '/../services/EquipmentService.php';
 
 echo "========================================================\n";
-echo "AMCS2194 MINI PROJECT: MODULES 5 & 6 TEST SUITE\n";
+echo "AMCS2194 MINI PROJECT: FULL INTEGRATED TEST SUITE\n";
+echo "Modules 3 & 4 (Shivendra) + Modules 5 & 6 (Tie Sing Wee)\n";
 echo "========================================================\n\n";
 
 $db = getDB();
@@ -232,9 +234,18 @@ assertTest('UF CheckInTime audit timestamp logged', !empty($checkedInRow['CheckI
 $dupQr = $bookingService->processQrCheckIn($qrTestId);
 assertTest('UF Duplicate QR Check-in caught idempotently', $dupQr['already'] === true);
 
-// 3. Test 15-Minute No-Show Auto-Release Engine
+// 3. Test 15-Minute No-Show Auto-Release Engine & 3-Strike Penalty
+$prevBanStmt = $db->query("SELECT BookingBanUntil FROM user WHERE UserID = 'A240112'");
+$prevBan = $prevBanStmt->fetchColumn();
+$prevResetStmt = $db->query("SELECT StrikeResetAt FROM user WHERE UserID = 'A240112'");
+$prevReset = $prevResetStmt->fetchColumn();
+
+// Clean penalty state for test
+$db->exec("UPDATE user SET BookingBanUntil = NULL, StrikeResetAt = NULL WHERE UserID = 'A240112'");
+
 $overdueTestId = 'BK-OVD9';
-$db->exec("DELETE FROM booking WHERE BookingID = '{$overdueTestId}'");
+$db->exec("DELETE FROM booking WHERE BookingID IN ('{$overdueTestId}', 'BK-NS1', 'BK-NS2')");
+$db->exec("INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus) VALUES ('BK-NS1', 'A240112', 'FAC-01', CURDATE(), '08:00:00', '09:00:00', 'Prior NoShow 1', 'No-Show'), ('BK-NS2', 'A240112', 'FAC-02', CURDATE(), '09:00:00', '10:00:00', 'Prior NoShow 2', 'No-Show')");
 $db->prepare("INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus, CheckInTime) VALUES (?, 'A240112', 'FAC-05', CURDATE(), SUBTIME(CURTIME(), '00:25:00'), ADDTIME(CURTIME(), '01:00:00'), 'Overdue Test', 'Confirmed', NULL)")
    ->execute([$overdueTestId]);
 
@@ -245,19 +256,152 @@ assertTest('UF Overdue booking auto-released as No-Show', in_array($overdueTestI
 $overdueRow = $bookingService->getBookingById($overdueTestId);
 assertTest('UF DB verification: Status is No-Show', $overdueRow['BookingStatus'] === 'No-Show');
 
-// 4. Test 3-Strike No-Show 3-Day Booking Penalty (preserve existing ban state)
-$prevBanStmt = $db->query("SELECT BookingBanUntil FROM user WHERE UserID = 'A240112'");
-$prevBan = $prevBanStmt->fetchColumn();
+// 4. Test 3-Strike No-Show 3-Day Booking Penalty
 $penaltyStatus = $bookingService->getUserPenaltyStatus('A240112');
 assertTest('UF 3-Strike No-Show triggers 3-day BookingBanUntil', $penaltyStatus['no_show_count'] >= 3 && $penaltyStatus['is_banned'] === true);
 
 // Cleanup (restore original ban state)
-if ($prevBan) {
-    $db->prepare("UPDATE user SET BookingBanUntil = ? WHERE UserID = 'A240112'")->execute([$prevBan]);
-} else {
-    $bookingService->clearUserPenalty('A240112');
-}
-$db->exec("DELETE FROM booking WHERE BookingID IN ('{$qrTestId}', '{$overdueTestId}')");
+$bookingService->clearUserPenalty('A240112');
+$db->exec("DELETE FROM booking WHERE BookingID IN ('{$qrTestId}', '{$overdueTestId}', 'BK-NS1', 'BK-NS2')");
+
+// -----------------------------------------------------------------
+// 11. SHIVENDRA - MODULE 3: Booking Validation & Creation (3.1)
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Module 3 Booking Creation & Validation (3.1) ---\n";
+
+// Ensure clean state for Module 3 tests
+$db->exec("DELETE FROM equipment WHERE BookingID IN (SELECT BookingID FROM booking WHERE Purpose LIKE 'AMCS2194 Test%' OR Purpose LIKE 'Conflicting match%')");
+$db->exec("DELETE FROM booking WHERE Purpose LIKE 'AMCS2194 Test%' OR Purpose LIKE 'Conflicting match%'");
+
+// Test capacity rejection
+$overCapBooking = [
+    'FacilityID'  => 'FAC-01', // Library Room 1, Capacity 6
+    'UserID'      => 'A240112',
+    'BookingDate' => date('Y-m-d', strtotime('+1 day')),
+    'StartTime'   => '14:00',
+    'EndTime'     => '16:00',
+    'PartySize'   => 12, // Exceeds 6
+    'Purpose'     => 'Study session',
+];
+$capRes = $bookingService->createBookingWithValidation($overCapBooking);
+assertTest('3.1 Party Size Exceeding Capacity Rejected', $capRes['success'] === false && isset($capRes['errors']['PartySize']));
+
+// Test past date rejection
+$pastBooking = [
+    'FacilityID'  => 'FAC-01',
+    'UserID'      => 'A240112',
+    'BookingDate' => '2020-01-01',
+    'StartTime'   => '10:00',
+    'EndTime'     => '12:00',
+    'PartySize'   => 4,
+    'Purpose'     => 'Past session',
+];
+$pastRes = $bookingService->createBookingWithValidation($pastBooking);
+assertTest('3.1 Past Date Booking Rejected', $pastRes['success'] === false && isset($pastRes['errors']['BookingDate']));
+
+// Test valid booking creation
+$validBooking = [
+    'FacilityID'  => 'FAC-03', // Badminton Court 1
+    'UserID'      => 'A240112',
+    'BookingDate' => date('Y-m-d', strtotime('+3 days')),
+    'StartTime'   => '10:00',
+    'EndTime'     => '12:00',
+    'PartySize'   => 4,
+    'Purpose'     => 'AMCS2194 Test Badminton Session',
+];
+$createRes = $bookingService->createBookingWithValidation($validBooking);
+assertTest('3.1 Valid Booking Created Successfully', $createRes['success'] === true && !empty($createRes['booking_id']));
+$testShivBookingId = $createRes['booking_id'];
+
+// -----------------------------------------------------------------
+// 12. SHIVENDRA - UNIQUE FEATURE: Conflict Detection & Intelligent Slot Suggestion
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Unique Feature Conflict Detection & Intelligent Suggestions ---\n";
+
+// Attempt to book the EXACT conflicting slot
+$conflictAttempt = [
+    'FacilityID'  => 'FAC-03',
+    'UserID'      => 'U1002',
+    'BookingDate' => date('Y-m-d', strtotime('+3 days')),
+    'StartTime'   => '10:30',
+    'EndTime'     => '11:30',
+    'PartySize'   => 2,
+    'Purpose'     => 'Conflicting match',
+];
+$conflictRes = $bookingService->createBookingWithValidation($conflictAttempt);
+assertTest('UF Overlapping Time Slot Detected', $conflictRes['conflict'] === true);
+assertTest('UF Nearest Free Slots Suggested for Venue', !empty($conflictRes['suggestions']['nearest_slots']));
+assertTest('UF Alternative Similar Venues Recommended', isset($conflictRes['suggestions']['alternative_venues']));
+
+// -----------------------------------------------------------------
+// 13. SHIVENDRA - MODULE 3: Booking Retrieval & Filters (3.2)
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Module 3 Retrieval & Filters (3.2) ---\n";
+
+$shivBookings = $bookingService->getFilteredBookings(['status' => 'Confirmed'], 'A240112');
+assertTest('3.2 Filter Bookings by Status and User', count($shivBookings) >= 1);
+
+$receiptDetails = $bookingService->getBookingDetails($testShivBookingId);
+assertTest('3.2 Retrieve Booking Receipt Details', $receiptDetails !== null && $receiptDetails['BookingID'] === $testShivBookingId);
+
+// -----------------------------------------------------------------
+// 14. SHIVENDRA - MODULE 4: Equipment Borrowing & Catalog (4.1 & 4.2)
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Module 4 Equipment Loans & Catalog (4.1 & 4.2) ---\n";
+
+$eqService = new EquipmentService();
+$catalog = $eqService->getCatalog('Sports');
+assertTest('4.2 Sports Equipment Catalog Retrieved', !empty($catalog['Sports Gear']));
+
+// Loan complimentary equipment for our created booking
+$loanData = [
+    'BookingID'   => $testShivBookingId,
+    'ItemName'    => 'Badminton Racket Pair',
+    'Category'    => 'Sports Gear',
+    'BorrowedQty' => 2,
+];
+$loanRes = $eqService->requestEquipmentLoan($loanData, 'A240112');
+assertTest('4.1 Request Complimentary Equipment Loan Success', $loanRes['success'] === true && !empty($loanRes['id']));
+$testLoanId = $loanRes['id'];
+
+// Retrieve loan records
+$retrievedLoan = $eqService->getLoanById($testLoanId);
+assertTest('4.2 Verify Loan Status is Borrowed', $retrievedLoan !== null && $retrievedLoan['BorrowStatus'] === 'Borrowed');
+
+// -----------------------------------------------------------------
+// 15. SHIVENDRA - MODULE 4: Equipment Return & Inspection (4.3)
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Module 4 Return Inspection (4.3) ---\n";
+
+$inspectRes = $eqService->inspectAndReturnEquipment($testLoanId, 'Returned', 'Good - verified string tension', true);
+assertTest('4.3 Equipment Return Inspection Success', $inspectRes['success'] === true);
+
+$updatedLoan = $eqService->getLoanById($testLoanId);
+assertTest('4.3 Loan Status Updated to Returned in DB', $updatedLoan['BorrowStatus'] === 'Returned');
+
+// -----------------------------------------------------------------
+// 16. SHIVENDRA - MODULE 4: Retire / Remove Equipment (4.4)
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Module 4 Retire Equipment (4.4) ---\n";
+
+$retireRes = $eqService->retireEquipment($testLoanId, true);
+assertTest('4.4 Retire / Remove Equipment from DB Success', $retireRes['success'] === true);
+assertTest('4.4 Verified Equipment Removed from DB', $eqService->getLoanById($testLoanId) === null);
+
+// -----------------------------------------------------------------
+// 17. SHIVENDRA - MODULE 3: Booking Cancellation & Slot Release (3.4)
+// -----------------------------------------------------------------
+echo "\n--- Testing Shivendra: Module 3 Cancellation & Slot Release (3.4) ---\n";
+
+$cancelRes = $bookingService->cancelBooking($testShivBookingId, 'A240112');
+assertTest('3.4 Cancel Facility Booking Success', $cancelRes['success'] === true);
+
+$cancelledRow = $bookingService->getBookingById($testShivBookingId);
+assertTest('3.4 Booking Status Updated to Cancelled in DB', $cancelledRow['BookingStatus'] === 'Cancelled');
+
+// Cleanup
+$db->exec("DELETE FROM equipment WHERE BookingID IN (SELECT BookingID FROM booking WHERE Purpose LIKE 'AMCS2194 Test%' OR Purpose LIKE 'Conflicting match%')");
+$db->exec("DELETE FROM booking WHERE BookingID = '{$testShivBookingId}' OR Purpose LIKE 'AMCS2194 Test%' OR Purpose LIKE 'Conflicting match%'");
 
 echo "\n========================================================\n";
 echo "TEST RESULTS: {$passed} PASSED, {$failed} FAILED\n";

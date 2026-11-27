@@ -14,6 +14,20 @@ class BookingService {
 
     public function __construct(?PDO $db = null) {
         $this->db = $db ?? getDB();
+        $this->ensureSchemaReady();
+    }
+
+    /**
+     * Ensure database schema includes optional audit and party size columns
+     */
+    private function ensureSchemaReady(): void {
+        try {
+            $this->db->exec("ALTER TABLE booking ADD COLUMN IF NOT EXISTS CheckInTime datetime DEFAULT NULL");
+            $this->db->exec("ALTER TABLE booking ADD COLUMN IF NOT EXISTS CheckOutTime datetime DEFAULT NULL");
+            $this->db->exec("ALTER TABLE booking ADD COLUMN IF NOT EXISTS PartySize int(11) DEFAULT 1");
+        } catch (Throwable $e) {
+            // Ignore if restricted or already exists
+        }
     }
 
     /**
@@ -349,6 +363,453 @@ class BookingService {
         } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Database error creating booking: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Module 3 / UF: Check if a requested facility time slot conflicts with an existing active booking
+     */
+    public function detectTimeConflict(
+        string $facilityId,
+        string $bookingDate,
+        string $startTime,
+        string $endTime,
+        ?string $excludeBookingId = null
+    ): ?array {
+        if (strlen($startTime) === 5) $startTime .= ':00';
+        if (strlen($endTime) === 5) $endTime .= ':00';
+
+        $sql = "SELECT b.BookingID, b.FacilityID, b.BookingDate, b.StartTime, b.EndTime, b.Purpose, b.BookingStatus,
+                       f.FacilityName, f.LocationBlock, f.Category AS FacilityCategory, u.FullName AS UserName
+                FROM booking b
+                JOIN facility f ON b.FacilityID = f.FacilityID
+                JOIN user u ON b.UserID = u.UserID
+                WHERE b.FacilityID = ?
+                  AND b.BookingDate = ?
+                  AND b.BookingStatus IN ('Confirmed', 'Checked-In')
+                  AND (b.StartTime < ? AND b.EndTime > ?)";
+        
+        $params = [$facilityId, $bookingDate, $endTime, $startTime];
+        if (!empty($excludeBookingId)) {
+            $sql .= " AND b.BookingID != ?";
+            $params[] = $excludeBookingId;
+        }
+        $sql .= " LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $conflict = $stmt->fetch();
+        return $conflict ?: null;
+    }
+
+    /**
+     * Unique Feature: Automated Conflict Detection & Intelligent Time-Slot Suggestion
+     * When a slot is unavailable, finds:
+     * 1. Nearest free slots at the same venue on the same date (e.g. ±1h, ±2h).
+     * 2. Alternative similar venues in the same category that fit party size and are not under maintenance.
+     */
+    public function suggestAlternativeSlotsAndVenues(
+        string $facilityId,
+        string $bookingDate,
+        string $startTime,
+        string $endTime,
+        int $partySize = 1
+    ): array {
+        if (strlen($startTime) === 5) $startTime .= ':00';
+        if (strlen($endTime) === 5) $endTime .= ':00';
+
+        $reqStartSec = strtotime("{$bookingDate} {$startTime}");
+        $reqEndSec   = strtotime("{$bookingDate} {$endTime}");
+        $durationMin = max(30, (int)round(($reqEndSec - $reqStartSec) / 60));
+
+        // Get target venue info
+        $vStmt = $this->db->prepare("SELECT * FROM facility WHERE FacilityID = ?");
+        $vStmt->execute([$facilityId]);
+        $targetVenue = $vStmt->fetch();
+        if (!$targetVenue) {
+            return ['target_venue' => null, 'nearest_slots' => [], 'alternative_venues' => []];
+        }
+
+        // 1. Find nearest free slots at the SAME venue
+        $nearestSlots = [];
+        $candidateHours = [
+            '08:00', '09:00', '10:00', '11:00', '12:00', 
+            '13:00', '14:00', '15:00', '16:00', '17:00', 
+            '18:00', '19:00', '20:00'
+        ];
+
+        foreach ($candidateHours as $cStart) {
+            $cStartSec = strtotime("{$bookingDate} {$cStart}:00");
+            $cEndSec   = $cStartSec + ($durationMin * 60);
+            $cEnd      = date('H:i:s', $cEndSec);
+            $cStartStr = "{$cStart}:00";
+
+            // Skip identical requested time
+            if ($cStartStr === $startTime && $cEnd === $endTime) {
+                continue;
+            }
+
+            // Campus operating hours 08:00 - 22:00
+            if ((int)date('H', $cEndSec) > 22 || ((int)date('H', $cEndSec) === 22 && (int)date('i', $cEndSec) > 0)) {
+                continue;
+            }
+
+            // Do not suggest past times if booking is for today
+            if ($bookingDate === date('Y-m-d') && $cStartSec <= time()) {
+                continue;
+            }
+
+            $conf = $this->detectTimeConflict($facilityId, $bookingDate, $cStartStr, $cEnd);
+            if (!$conf) {
+                $timeDiffMin = abs((int)round(($cStartSec - $reqStartSec) / 60));
+                $nearestSlots[] = [
+                    'FacilityID'   => $facilityId,
+                    'FacilityName' => $targetVenue['FacilityName'],
+                    'BookingDate'  => $bookingDate,
+                    'StartTime'    => substr($cStartStr, 0, 5),
+                    'EndTime'      => substr($cEnd, 0, 5),
+                    'TimeDiffMin'  => $timeDiffMin,
+                    'Label'        => substr($cStartStr, 0, 5) . ' – ' . substr($cEnd, 0, 5) . ' (' . ($cStartSec > $reqStartSec ? '+' : '') . round(($cStartSec - $reqStartSec)/3600, 1) . ' hrs)',
+                ];
+            }
+        }
+
+        // Sort nearest slots by minimum time difference
+        usort($nearestSlots, fn($a, $b) => $a['TimeDiffMin'] <=> $b['TimeDiffMin']);
+        $nearestSlots = array_slice($nearestSlots, 0, 3);
+
+        // 2. Find alternative venues of the same category
+        $altVenues = [];
+        $altStmt = $this->db->prepare(
+            "SELECT * FROM facility 
+             WHERE FacilityID != ? 
+               AND Category = ? 
+               AND AvailabilityStatus = 'Available' 
+               AND Capacity >= ? 
+             ORDER BY Capacity ASC, FacilityName ASC"
+        );
+        $altStmt->execute([$facilityId, $targetVenue['Category'], $partySize]);
+        $candidates = $altStmt->fetchAll();
+
+        foreach ($candidates as $cand) {
+            $candConflict = $this->detectTimeConflict($cand['FacilityID'], $bookingDate, $startTime, $endTime);
+            if (!$candConflict) {
+                $altVenues[] = [
+                    'FacilityID'    => $cand['FacilityID'],
+                    'FacilityName'  => $cand['FacilityName'],
+                    'LocationBlock' => $cand['LocationBlock'],
+                    'Category'      => $cand['Category'],
+                    'Capacity'      => (int)$cand['Capacity'],
+                    'BookingDate'   => $bookingDate,
+                    'StartTime'     => substr($startTime, 0, 5),
+                    'EndTime'       => substr($endTime, 0, 5),
+                    'Reason'        => "Same {$cand['Category']} category, fits {$partySize} pax, available at your exact requested time (" . substr($startTime, 0, 5) . "–" . substr($endTime, 0, 5) . ")",
+                ];
+            }
+        }
+        $altVenues = array_slice($altVenues, 0, 3);
+
+        return [
+            'target_venue'       => $targetVenue,
+            'nearest_slots'      => $nearestSlots,
+            'alternative_venues' => $altVenues,
+        ];
+    }
+
+    /**
+     * Process 3.1: Create Facility Booking with Full Form Validation
+     */
+    public function createBookingWithValidation(array $data): array {
+        $errors = [];
+
+        $facilityId  = trim((string)($data['FacilityID'] ?? ''));
+        $userId      = trim((string)($data['UserID'] ?? ''));
+        $bookingDate = trim((string)($data['BookingDate'] ?? ''));
+        $startTime   = trim((string)($data['StartTime'] ?? ''));
+        $endTime     = trim((string)($data['EndTime'] ?? ''));
+        $purpose     = trim((string)($data['Purpose'] ?? ''));
+        $partySize   = (int)($data['PartySize'] ?? 1);
+
+        if ($facilityId === '') {
+            $errors['FacilityID'] = 'Please select a campus facility.';
+        }
+        if ($userId === '') {
+            $errors['UserID'] = 'User session is required.';
+        }
+        if ($bookingDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $bookingDate)) {
+            $errors['BookingDate'] = 'A valid booking date (YYYY-MM-DD) is required.';
+        } elseif ($bookingDate < date('Y-m-d')) {
+            $errors['BookingDate'] = 'Booking date cannot be in the past.';
+        }
+
+        if ($startTime === '') {
+            $errors['StartTime'] = 'Start time is required.';
+        }
+        if ($endTime === '') {
+            $errors['EndTime'] = 'End time is required.';
+        }
+        if ($startTime !== '' && $endTime !== '') {
+            if (strlen($startTime) === 5) $startTime .= ':00';
+            if (strlen($endTime) === 5) $endTime .= ':00';
+
+            if ($startTime >= $endTime) {
+                $errors['EndTime'] = 'End time must be after start time.';
+            }
+
+            // Check if booking is today and start time has passed
+            if ($bookingDate === date('Y-m-d')) {
+                $startSec = strtotime("{$bookingDate} {$startTime}");
+                if ($startSec <= time()) {
+                    $errors['StartTime'] = 'Start time must be in the future.';
+                }
+            }
+        }
+
+        if ($partySize < 1) {
+            $errors['PartySize'] = 'Party size must be at least 1 person.';
+        }
+
+        if ($purpose === '') {
+            $errors['Purpose'] = 'Please describe the booking purpose (e.g. Study Group, Badminton Match).';
+        } elseif (strlen($purpose) < 5) {
+            $errors['Purpose'] = 'Purpose description must be at least 5 characters.';
+        }
+
+        // Check user penalty status (Tie Sing Wee's 3-strike rule integration)
+        if ($userId !== '') {
+            $penalty = $this->getUserPenaltyStatus($userId);
+            if ($penalty['is_banned']) {
+                $errors['general'] = 'Your facility booking privileges are suspended until ' . date('d M Y, H:i', strtotime((string)$penalty['ban_until'])) . ' due to 3 or more unexcused no-show strikes.';
+            }
+        }
+
+        // Check facility capacity and maintenance status
+        $facility = null;
+        if ($facilityId !== '') {
+            $facStmt = $this->db->prepare("SELECT * FROM facility WHERE FacilityID = ?");
+            $facStmt->execute([$facilityId]);
+            $facility = $facStmt->fetch();
+            if (!$facility) {
+                $errors['FacilityID'] = 'Specified facility does not exist.';
+            } else {
+                if ($facility['AvailabilityStatus'] === 'Under Maintenance') {
+                    $errors['FacilityID'] = "{$facility['FacilityName']} is currently locked under maintenance and unavailable for booking.";
+                } elseif ($facility['AvailabilityStatus'] === 'Closed') {
+                    $errors['FacilityID'] = "{$facility['FacilityName']} is currently closed.";
+                }
+
+                if ($partySize > (int)$facility['Capacity']) {
+                    $errors['PartySize'] = "Party size ({$partySize} pax) exceeds the maximum capacity of {$facility['FacilityName']} ({$facility['Capacity']} pax).";
+                }
+            }
+        }
+
+        if (!empty($errors)) {
+            return [
+                'success'     => false,
+                'conflict'    => false,
+                'errors'      => $errors,
+                'message'     => 'Please correct the highlighted form errors.',
+                'suggestions' => null,
+            ];
+        }
+
+        // Time slot conflict check
+        $conflict = $this->detectTimeConflict($facilityId, $bookingDate, $startTime, $endTime);
+        if ($conflict) {
+            $suggestions = $this->suggestAlternativeSlotsAndVenues($facilityId, $bookingDate, $startTime, $endTime, $partySize);
+            return [
+                'success'     => false,
+                'conflict'    => true,
+                'errors'      => [
+                    'conflict' => "Time Conflict: {$facility['FacilityName']} is already booked from " . substr($conflict['StartTime'], 0, 5) . " to " . substr($conflict['EndTime'], 0, 5) . " by another user."
+                ],
+                'message'     => "Selected time slot is unavailable. Please review the alternative recommendations below.",
+                'conflict_with' => $conflict,
+                'suggestions' => $suggestions,
+            ];
+        }
+
+        // Generate next Booking ID (BK-XXXX)
+        $idStmt = $this->db->query("SELECT BookingID FROM booking WHERE BookingID REGEXP '^BK-[0-9]+$' ORDER BY CAST(SUBSTRING(BookingID, 4) AS UNSIGNED) DESC LIMIT 1");
+        $lastId = $idStmt->fetchColumn();
+        $nextNum = 3001;
+        if ($lastId && preg_match('/^BK-(\d+)$/', (string)$lastId, $m)) {
+            $nextNum = (int)$m[1] + 1;
+        }
+        $bookingId = 'BK-' . str_pad((string)$nextNum, 4, '0', STR_PAD_LEFT);
+
+        try {
+            $stmt = $this->db->prepare(
+                "INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus, CheckInTime, PartySize)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Confirmed', NULL, ?)"
+            );
+            $stmt->execute([
+                $bookingId,
+                $userId,
+                $facilityId,
+                $bookingDate,
+                $startTime,
+                $endTime,
+                $purpose,
+                $partySize,
+            ]);
+
+            return [
+                'success'    => true,
+                'conflict'   => false,
+                'booking_id' => $bookingId,
+                'message'    => "Facility reservation {$bookingId} confirmed successfully for {$facility['FacilityName']}!",
+                'errors'     => [],
+            ];
+        } catch (PDOException $e) {
+            // Fallback if PartySize column is not present
+            try {
+                $stmt = $this->db->prepare(
+                    "INSERT INTO booking (BookingID, UserID, FacilityID, BookingDate, StartTime, EndTime, Purpose, BookingStatus, CheckInTime)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 'Confirmed', NULL)"
+                );
+                $stmt->execute([
+                    $bookingId,
+                    $userId,
+                    $facilityId,
+                    $bookingDate,
+                    $startTime,
+                    $endTime,
+                    $purpose,
+                ]);
+                return [
+                    'success'    => true,
+                    'conflict'   => false,
+                    'booking_id' => $bookingId,
+                    'message'    => "Facility reservation {$bookingId} confirmed successfully for {$facility['FacilityName']}!",
+                    'errors'     => [],
+                ];
+            } catch (PDOException $e2) {
+                return [
+                    'success'  => false,
+                    'conflict' => false,
+                    'errors'   => ['general' => $e2->getMessage()],
+                    'message'  => 'Database error creating booking: ' . $e2->getMessage(),
+                ];
+            }
+        }
+    }
+
+    /**
+     * Process 3.4: Cancel Facility Booking & Release Equipment Holds
+     */
+    public function cancelBooking(string $bookingId, string $userId, bool $isAdmin = false): array {
+        $booking = $this->getBookingById($bookingId);
+        if (!$booking) {
+            return ['success' => false, 'message' => "Booking {$bookingId} not found."];
+        }
+
+        if (!$isAdmin && $booking['UserID'] !== $userId) {
+            return ['success' => false, 'message' => "Unauthorized: You can only cancel your own bookings."];
+        }
+
+        if ($booking['BookingStatus'] === 'Cancelled') {
+            return ['success' => false, 'message' => "Booking {$bookingId} is already cancelled."];
+        }
+
+        if ($booking['BookingStatus'] === 'Completed') {
+            return ['success' => false, 'message' => "Cannot cancel a booking that has already completed."];
+        }
+
+        if ($booking['BookingStatus'] === 'Checked-In') {
+            return ['success' => false, 'message' => "Cannot cancel: Attendance has already been verified via QR check-in."];
+        }
+
+        if ($booking['BookingStatus'] === 'No-Show') {
+            return ['success' => false, 'message' => "Cannot cancel an expired no-show reservation."];
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            // 1. Mark booking as Cancelled
+            $stmt = $this->db->prepare("UPDATE booking SET BookingStatus = 'Cancelled' WHERE BookingID = ?");
+            $stmt->execute([$bookingId]);
+
+            // 2. Release any borrowed equipment associated with this booking
+            $eqStmt = $this->db->prepare("UPDATE equipment SET BorrowStatus = 'Returned', ConditionOnReturn = 'Cancelled Hold Released' WHERE BookingID = ? AND BorrowStatus = 'Borrowed'");
+            $eqStmt->execute([$bookingId]);
+
+            $this->db->commit();
+
+            return [
+                'success' => true,
+                'message' => "Booking {$bookingId} for {$booking['FacilityName']} has been cancelled. The venue and any equipment holds have been released.",
+            ];
+        } catch (PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['success' => false, 'message' => 'Error cancelling booking: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Process 3.2: Retrieve bookings with rich filters (search, status, date, role)
+     */
+    public function getFilteredBookings(array $filters = [], ?string $userId = null): array {
+        $sql = "SELECT b.*, f.FacilityName, f.LocationBlock, f.Category AS FacilityCategory, f.Capacity, f.AvailabilityStatus,
+                       u.FullName AS UserName, u.CampusEmail, u.UserRole,
+                       (SELECT COUNT(*) FROM equipment eq WHERE eq.BookingID = b.BookingID) AS EquipmentCount
+                FROM booking b
+                JOIN facility f ON b.FacilityID = f.FacilityID
+                JOIN user u ON b.UserID = u.UserID
+                WHERE 1=1";
+        $params = [];
+
+        if (!empty($userId)) {
+            $sql .= " AND b.UserID = ?";
+            $params[] = $userId;
+        }
+
+        if (!empty($filters['status']) && $filters['status'] !== 'ALL') {
+            $sql .= " AND b.BookingStatus = ?";
+            $params[] = $filters['status'];
+        }
+
+        if (!empty($filters['date'])) {
+            $sql .= " AND b.BookingDate = ?";
+            $params[] = $filters['date'];
+        }
+
+        if (!empty($filters['category']) && $filters['category'] !== 'ALL') {
+            $sql .= " AND f.Category = ?";
+            $params[] = $filters['category'];
+        }
+
+        if (!empty($filters['search'])) {
+            $sql .= " AND (b.BookingID LIKE ? OR f.FacilityName LIKE ? OR b.Purpose LIKE ? OR u.FullName LIKE ?)";
+            $term = "%" . trim($filters['search']) . "%";
+            $params[] = $term;
+            $params[] = $term;
+            $params[] = $term;
+            $params[] = $term;
+        }
+
+        $sql .= " ORDER BY b.BookingDate DESC, b.StartTime DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Process 3.2: Comprehensive booking details joined with equipment and user info
+     */
+    public function getBookingDetails(string $bookingId): ?array {
+        $booking = $this->getBookingById($bookingId);
+        if (!$booking) return null;
+
+        $eqStmt = $this->db->prepare("SELECT * FROM equipment WHERE BookingID = ? ORDER BY EquipmentID ASC");
+        $eqStmt->execute([$bookingId]);
+        $booking['EquipmentList'] = $eqStmt->fetchAll();
+
+        return $booking;
     }
 
     /**
