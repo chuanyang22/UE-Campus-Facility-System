@@ -19,8 +19,9 @@ $bookingService  = new BookingService();
 $maintService    = new MaintenanceService();
 $feedbackService = new FeedbackService();
 
+$isLoggedIn  = AuthService::isLoggedIn();
 $currentUser = AuthService::getCurrentUser();
-$isAdmin = AuthService::isAdmin();
+$isAdmin     = AuthService::isAdmin();
 
 // Technicians only view Maintenance
 if (AuthService::isTechnician()) {
@@ -69,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'quick_book') {
+        AuthService::requireLogin('index.php#facility-directory');
         $facId = trim((string)($_POST['facility_id'] ?? ''));
         $bDate = trim((string)($_POST['booking_date'] ?? date('Y-m-d')));
         $sTime = trim((string)($_POST['start_time'] ?? date('H:i'))) . ':00';
@@ -83,9 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Load all facilities for instant client-side filtering & live search
-$userBookings  = $bookingService->getUserBookings($currentUser['UserID']);
+$userBookings  = $isLoggedIn ? $bookingService->getUserBookings($currentUser['UserID']) : [];
 $facilities    = $bookingService->getAllFacilitiesWithStats('ALL', '');
-$penaltyStatus = $bookingService->getUserPenaltyStatus($currentUser['UserID']);
+$penaltyStatus = $isLoggedIn ? $bookingService->getUserPenaltyStatus($currentUser['UserID']) : ['is_banned' => false, 'no_show_count' => 0, 'ban_until' => null];
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -131,12 +133,18 @@ require_once __DIR__ . '/includes/header.php';
         <div class="hero-quick-actions">
             <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6rem;"><?= htmlspecialchars(t('quick_actions')) ?></div>
             <div style="display: flex; flex-direction: column; gap: 0.55rem;">
-                <a href="modules/maintenance/report.php" class="btn btn-primary-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
-                    <?= htmlspecialchars(t('btn_report_defect')) ?>
-                </a>
-                <a href="modules/feedback/completed.php" class="btn btn-outline-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
-                    <?= htmlspecialchars(t('btn_rate_completed')) ?>
-                </a>
+                <?php if ($isLoggedIn): ?>
+                    <a href="modules/maintenance/report.php" class="btn btn-primary-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
+                        <?= htmlspecialchars(t('btn_report_defect')) ?>
+                    </a>
+                    <a href="modules/feedback/completed.php" class="btn btn-outline-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
+                        <?= htmlspecialchars(t('btn_rate_completed')) ?>
+                    </a>
+                <?php else: ?>
+                    <a href="modules/user/login.php" class="btn btn-primary-blue" style="font-size: 0.88rem; text-align: left; padding: 0.55rem 0.9rem;">
+                        Sign In / Register to Book &rarr;
+                    </a>
+                <?php endif; ?>
                 <a href="modules/feedback/index.php" class="btn btn-cancel" style="font-size: 0.85rem; text-align: left; padding: 0.5rem 0.9rem;">
                     <?= htmlspecialchars(t('btn_view_reviews')) ?>
                 </a>
@@ -168,7 +176,17 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </div>
 
-    <?php if (empty($userBookings)): ?>
+    <?php if (!$isLoggedIn): ?>
+        <div class="ui-card" style="text-align: center; padding: 2.25rem;">
+            <p style="color: var(--text-body); font-size: 0.98rem; margin-bottom: 1rem;">
+                Sign in or create a campus account to view your reservations, check in with QR codes, or book a facility.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+                <a href="modules/user/login.php" class="btn btn-outline-blue">Sign In to Existing Account</a>
+                <a href="modules/user/register.php" class="btn btn-primary-blue">Register New Account</a>
+            </div>
+        </div>
+    <?php elseif (empty($userBookings)): ?>
         <div class="ui-card" style="text-align: center; padding: 2.5rem;">
             <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;"><?= htmlspecialchars(t('no_bookings_msg')) ?></p>
             <a href="#facility-directory" class="btn btn-primary-blue"><?= htmlspecialchars(t('btn_book_now')) ?></a>
@@ -406,9 +424,15 @@ require_once __DIR__ . '/includes/header.php';
                             &#9940; <?= htmlspecialchars(t('ban_btn_disabled')) ?>
                         </button>
                     <?php elseif ($isAvailable): ?>
-                        <button type="button" onclick="openQuickBookModal('<?= htmlspecialchars($f['FacilityID'], ENT_QUOTES) ?>', '<?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>')" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
-                            <?= htmlspecialchars(t('btn_quick_book')) ?>
-                        </button>
+                        <?php if ($isLoggedIn): ?>
+                            <button type="button" onclick="openQuickBookModal('<?= htmlspecialchars($f['FacilityID'], ENT_QUOTES) ?>', '<?= htmlspecialchars($f['FacilityName'], ENT_QUOTES) ?>')" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600;">
+                                <?= htmlspecialchars(t('btn_quick_book')) ?>
+                            </button>
+                        <?php else: ?>
+                            <a href="modules/user/login.php?redirect=<?= urlencode('index.php?book_facility=' . $f['FacilityID'] . '#facility-directory') ?>" class="btn btn-primary-blue" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; font-weight: 600; text-align: center;">
+                                <?= htmlspecialchars(t('btn_quick_book')) ?>
+                            </a>
+                        <?php endif; ?>
                     <?php else: ?>
                         <button type="button" disabled class="btn btn-cancel" style="flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; cursor: not-allowed; opacity: 0.6;">
                             <?= htmlspecialchars(t('btn_locked_maint')) ?>
@@ -450,20 +474,26 @@ require_once __DIR__ . '/includes/header.php';
         </a>
     </div>
 
-    <!-- Service 2: Rate Session -->
+    <!-- Service 2: Rate Session (or View Reviews for Guests) -->
     <div class="ui-card" style="padding: 1.5rem; margin: 0; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
             <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">&#11088;</div>
             <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.4rem;">
-                <?= htmlspecialchars(t('srv_rate_title')) ?>
+                <?= $isLoggedIn ? htmlspecialchars(t('srv_rate_title')) : htmlspecialchars(t('btn_view_reviews')) ?>
             </h3>
             <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 1rem 0;">
-                <?= htmlspecialchars(t('srv_rate_desc')) ?>
+                <?= $isLoggedIn ? htmlspecialchars(t('srv_rate_desc')) : 'Browse verified student ratings and facility reviews before making a booking. Sign in to submit your own review.' ?>
             </p>
         </div>
-        <a href="modules/feedback/completed.php" class="btn btn-primary-blue" style="font-size: 0.85rem; text-align: center;">
-            <?= htmlspecialchars(t('srv_rate_btn')) ?>
-        </a>
+        <?php if ($isLoggedIn): ?>
+            <a href="modules/feedback/completed.php" class="btn btn-primary-blue" style="font-size: 0.85rem; text-align: center;">
+                <?= htmlspecialchars(t('srv_rate_btn')) ?>
+            </a>
+        <?php else: ?>
+            <a href="modules/feedback/index.php" class="btn btn-outline-blue" style="font-size: 0.85rem; text-align: center;">
+                View Facility Reviews &rarr;
+            </a>
+        <?php endif; ?>
     </div>
 
     <?php if ($isAdmin): ?>
@@ -756,6 +786,18 @@ const searchEl = document.getElementById('facilitySearchInput');
 if (searchEl) {
     searchEl.addEventListener('input', filterFacilitiesLive);
 }
+
+<?php if ($isLoggedIn && !empty($_GET['book_facility'])): ?>
+    <?php
+        $targetFacId = trim((string)$_GET['book_facility']);
+        foreach ($facilities as $facItem) {
+            if ($facItem['FacilityID'] === $targetFacId && $facItem['AvailabilityStatus'] === 'Available') {
+                echo "document.addEventListener('DOMContentLoaded', function() { openQuickBookModal('" . htmlspecialchars($facItem['FacilityID'], ENT_QUOTES) . "', '" . htmlspecialchars($facItem['FacilityName'], ENT_QUOTES) . "'); });\n";
+                break;
+            }
+        }
+    ?>
+<?php endif; ?>
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

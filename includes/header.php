@@ -30,8 +30,9 @@ if (!isset($activeNav)) {
     $activeNav = '';
 }
 
-$isAdmin      = ($currentUser['UserRole'] ?? '') === 'Admin';
-$isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
+$isLoggedIn   = AuthService::isLoggedIn();
+$isAdmin      = $isLoggedIn && ($currentUser['UserRole'] ?? '') === 'Admin';
+$isTechnician = $isLoggedIn && ($currentUser['UserRole'] ?? '') === 'Technician';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -67,17 +68,34 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+            <?php if ($isLoggedIn && !empty($currentUser['AvatarPath'])): ?>
+                <a href="<?= $baseUrl ?>modules/user/profile.php" title="My Profile">
+                    <img src="<?= $baseUrl . htmlspecialchars($currentUser['AvatarPath']) ?>" alt="Avatar"
+                         style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--primary-blue); vertical-align: middle;">
+                </a>
+            <?php endif; ?>
             <span class="user-badge-text">
                 <?php
-                    $rolePrefix = $isAdmin ? 'Admin' : ($isTechnician ? 'Tech' : 'User');
-                    echo '[' . $rolePrefix . ': ' . htmlspecialchars($currentUser['UserID']) . ']';
+                    if (!$isLoggedIn) {
+                        echo '[Guest]';
+                    } else {
+                        $rolePrefix = $isAdmin ? 'Admin' : ($isTechnician ? 'Tech' : 'User');
+                        echo '[' . $rolePrefix . ': ' . htmlspecialchars($currentUser['UserID']) . ']';
+                    }
                 ?>
             </span>
+            <?php if (!$isLoggedIn): ?>
+                <a href="<?= $baseUrl ?>modules/user/login.php" class="btn btn-outline-blue" style="padding: 4px 10px; font-size: 0.78rem;">Sign In</a>
+                <a href="<?= $baseUrl ?>modules/user/register.php" class="btn btn-primary-blue" style="padding: 4px 10px; font-size: 0.78rem;">Register</a>
+            <?php else: ?>
+                <a href="?logout=1" class="btn btn-cancel" style="padding: 4px 10px; font-size: 0.78rem;" title="Sign out to Guest mode">Sign Out</a>
+            <?php endif; ?>
             <form method="GET" style="margin: 0; display: inline;">
                 <select name="switch_user" onchange="this.form.submit()" class="nav-select-compact" title="Toggle persona for testing">
-                    <option value="A240112" <?= $currentUser['UserID'] === 'A240112' ? 'selected' : '' ?>>User: A240112</option>
-                    <option value="T0001" <?= $currentUser['UserID'] === 'T0001' ? 'selected' : '' ?>>Tech: T0001</option>
-                    <option value="S0012" <?= $currentUser['UserID'] === 'S0012' ? 'selected' : '' ?>>Admin: S0012</option>
+                    <option value="" <?= !$isLoggedIn ? 'selected' : '' ?>>Guest Mode</option>
+                    <option value="A240112" <?= ($isLoggedIn && $currentUser['UserID'] === 'A240112') ? 'selected' : '' ?>>User: A240112</option>
+                    <option value="T0001" <?= ($isLoggedIn && $currentUser['UserID'] === 'T0001') ? 'selected' : '' ?>>Tech: T0001</option>
+                    <option value="S0012" <?= ($isLoggedIn && $currentUser['UserID'] === 'S0012') ? 'selected' : '' ?>>Admin: S0012</option>
                 </select>
             </form>
 
@@ -107,12 +125,25 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
 <div class="app-shell">
     <aside id="appSidebar" class="app-sidebar">
         <nav class="sidebar-nav">
-            <?php if ($isTechnician): ?>
+            <?php if (!$isLoggedIn): ?>
+                <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
+                    <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/feedback/index.php" class="sidebar-link <?= $activeNav === 'feedback' ? 'active' : '' ?>">
+                    <span>&#11088;</span> <?= htmlspecialchars(t('nav_feedback')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/user/login.php" class="sidebar-link <?= $activeNav === 'profile' ? 'active' : '' ?>">
+                    <span>&#128273;</span> Sign In / Register
+                </a>
+            <?php elseif ($isTechnician): ?>
                 <a href="<?= $baseUrl ?>modules/maintenance/index.php" class="sidebar-link <?= $activeNav === 'maintenance' ? 'active' : '' ?>">
                     <span>&#128295;</span> <?= htmlspecialchars(t('nav_maintenance')) ?>
                 </a>
                 <a href="<?= $baseUrl ?>modules/equipment/index.php" class="sidebar-link <?= $activeNav === 'equipment' ? 'active' : '' ?>">
                     <span>&#127890;</span> <?= htmlspecialchars(t('nav_equipment')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/user/profile.php" class="sidebar-link <?= $activeNav === 'profile' ? 'active' : '' ?>">
+                    <span>&#128100;</span> <?= htmlspecialchars(t('nav_profile')) ?>
                 </a>
             <?php elseif ($isAdmin): ?>
                 <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
@@ -130,6 +161,12 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
                 <a href="<?= $baseUrl ?>modules/feedback/index.php" class="sidebar-link <?= $activeNav === 'feedback' ? 'active' : '' ?>">
                     <span>&#11088;</span> <?= htmlspecialchars(t('nav_feedback')) ?>
                 </a>
+                <a href="<?= $baseUrl ?>modules/user/index.php" class="sidebar-link <?= $activeNav === 'users' ? 'active' : '' ?>">
+                    <span>&#128101;</span> <?= htmlspecialchars(t('nav_users')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/user/profile.php" class="sidebar-link <?= $activeNav === 'profile' ? 'active' : '' ?>">
+                    <span>&#128100;</span> <?= htmlspecialchars(t('nav_profile')) ?>
+                </a>
             <?php else: ?>
                 <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
                     <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
@@ -145,6 +182,9 @@ $isTechnician = ($currentUser['UserRole'] ?? '') === 'Technician';
                 </a>
                 <a href="<?= $baseUrl ?>modules/maintenance/report.php" class="sidebar-link <?= $activeNav === 'report_defect' ? 'active' : '' ?>">
                     <span>&#128295;</span> <?= htmlspecialchars(t('nav_report_defect')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/user/profile.php" class="sidebar-link <?= $activeNav === 'profile' ? 'active' : '' ?>">
+                    <span>&#128100;</span> <?= htmlspecialchars(t('nav_profile')) ?>
                 </a>
             <?php endif; ?>
         </nav>

@@ -13,6 +13,7 @@ $pageTitle = 'Submit Session Feedback & Star Rating';
 $activeNav = 'feedback';
 
 $service     = new FeedbackService();
+AuthService::requireLogin($_SERVER['REQUEST_URI'] ?? '');
 $currentUser = AuthService::getCurrentUser();
 
 if (AuthService::isTechnician()) {

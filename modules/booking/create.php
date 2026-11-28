@@ -14,6 +14,7 @@ $pageTitle = 'Reserve a Campus Facility';
 $activeNav = 'bookings';
 
 $bookingService = new BookingService();
+AuthService::requireLogin($_SERVER['REQUEST_URI'] ?? '');
 $currentUser    = AuthService::getCurrentUser();
 
 if (AuthService::isTechnician()) {
