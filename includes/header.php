@@ -129,6 +129,12 @@ $isTechnician = $isLoggedIn && ($currentUser['UserRole'] ?? '') === 'Technician'
                 <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
                     <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
                 </a>
+                <a href="<?= $baseUrl ?>modules/facility/floor_plan.php" class="sidebar-link <?= $activeNav === 'floor_plan' ? 'active' : '' ?>">
+                    <span>&#128506;</span> <?= htmlspecialchars(t('nav_floor_plan')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/facility/index.php" class="sidebar-link <?= $activeNav === 'facility_dir' ? 'active' : '' ?>">
+                    <span>&#128214;</span> <?= htmlspecialchars(t('nav_facility_dir')) ?>
+                </a>
                 <a href="<?= $baseUrl ?>modules/feedback/index.php" class="sidebar-link <?= $activeNav === 'feedback' ? 'active' : '' ?>">
                     <span>&#11088;</span> <?= htmlspecialchars(t('nav_feedback')) ?>
                 </a>
@@ -148,6 +154,12 @@ $isTechnician = $isLoggedIn && ($currentUser['UserRole'] ?? '') === 'Technician'
             <?php elseif ($isAdmin): ?>
                 <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
                     <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/facility/floor_plan.php" class="sidebar-link <?= $activeNav === 'floor_plan' ? 'active' : '' ?>">
+                    <span>&#128506;</span> <?= htmlspecialchars(t('nav_floor_plan')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/facility/index.php" class="sidebar-link <?= $activeNav === 'facility_dir' ? 'active' : '' ?>">
+                    <span>&#128214;</span> <?= htmlspecialchars(t('nav_facility_dir')) ?>
                 </a>
                 <a href="<?= $baseUrl ?>modules/booking/index.php?view_all=1" class="sidebar-link <?= $activeNav === 'bookings' ? 'active' : '' ?>">
                     <span>&#128197;</span> <?= htmlspecialchars(t('nav_my_bookings')) ?>
@@ -170,6 +182,12 @@ $isTechnician = $isLoggedIn && ($currentUser['UserRole'] ?? '') === 'Technician'
             <?php else: ?>
                 <a href="<?= $baseUrl ?>index.php" class="sidebar-link <?= $activeNav === 'facilities' ? 'active' : '' ?>">
                     <span>&#127970;</span> <?= htmlspecialchars(t('nav_facilities')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/facility/floor_plan.php" class="sidebar-link <?= $activeNav === 'floor_plan' ? 'active' : '' ?>">
+                    <span>&#128506;</span> <?= htmlspecialchars(t('nav_floor_plan')) ?>
+                </a>
+                <a href="<?= $baseUrl ?>modules/facility/index.php" class="sidebar-link <?= $activeNav === 'facility_dir' ? 'active' : '' ?>">
+                    <span>&#128214;</span> <?= htmlspecialchars(t('nav_facility_dir')) ?>
                 </a>
                 <a href="<?= $baseUrl ?>modules/booking/index.php" class="sidebar-link <?= $activeNav === 'bookings' ? 'active' : '' ?>">
                     <span>&#128197;</span> <?= htmlspecialchars(t('nav_my_bookings')) ?>
